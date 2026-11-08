@@ -19,9 +19,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -41,8 +41,14 @@ jobs:
       - name: 테스트
         run: flutter test
 
+      # Gradle 배포 파일을 GitHub에서 받다가 일시적으로 504가 나는 경우가 있어 3번까지 다시 시도한다.
       - name: APK 빌드
-        run: flutter build apk --release --build-number=${{ github.run_number }}
+        run: |
+          for i in 1 2 3; do
+            flutter build apk --release --build-number=${{ github.run_number }} && exit 0
+            echo "빌드 실패 ($i/3), 30초 후 다시 시도"; sleep 30
+          done
+          exit 1
 
       - name: Releases의 dev-latest에 올리기
         env:
