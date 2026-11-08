@@ -30,9 +30,22 @@
 | 테스트 | flutter_test(단위·위젯), integration_test(흐름) |
 
 - 레포 구조: Flutter 프로젝트는 레포 루트. 이전 앱은 `reference/`.
+  - `lib/core/`: 시계(`clock.dart`), 날짜 키·원 표시(`dates.dart`), 오늘/이번 달과 날짜 변경 감지(`today.dart`).
+  - `lib/data/`: drift DB(`database.dart` + 생성 파일 `database.g.dart`), 기본 카테고리, 설정(`settings.dart`), Riverpod 프로바이더.
+  - `lib/domain/`: 화면과 무관한 규칙(예산 방식, 초과 판단 등).
+  - `lib/ui/`: 테마(이전 앱 색상), 하단 탭 셸, 화면들.
+  - `test/`: 단위·위젯 테스트. `test/helpers.dart`에 가짜 시계와 메모리 DB.
 - appId `com.mybudgetapp.gagyebu`, 앱 이름 `가계부`(가칭). appId는 출시 전까지 변경 가능, 출시 후 영구 고정.
 - Android minSdk 24 (Android 7.0).
-- 시계는 주입 가능하게 만든다(테스트에서 날짜를 바꿔 자정·월말을 검증하기 위해).
+- 시계는 주입 가능하게 만든다(테스트에서 날짜를 바꿔 자정·월말을 검증하기 위해). "오늘"은 `todayProvider`, "이번 달"은 `currentMonthKeyProvider`로만 읽는다.
+- DB 스키마를 바꾸면 `dart run build_runner build --delete-conflicting-outputs`로 생성 파일을 다시 만들고 함께 커밋한다. 출시 후에는 `schemaVersion`을 올리고 마이그레이션을 작성한다.
+- 위젯 테스트에서 DB 작업은 `tester.runAsync` 안에서 하고, 화면 갱신은 `pumpAndSettle` 대신 `test/ui/app_test.dart`의 `settle()`처럼 실제 시간을 조금씩 흘려보낸다(drift가 실제 비동기 I/O를 써서 가짜 시간에서는 멈춘다).
+- 서명: 테스트 빌드는 레포의 `android/app/dev.keystore`(테스트 전용 키)로 서명한다. 어디서 빌드해도 같은 키라 새 APK가 기존 앱 위에 덮어 설치된다. **Play 스토어 업로드 키는 절대 커밋하지 않는다.**
+- 글꼴(Gothic A1, Gaegu) 파일은 아직 없다. 세부 설정을 이식할 때 assets에 추가한다(클라우드 세션에서는 GitHub raw·Google Fonts 다운로드가 막혀 있다).
+
+### 테스트 빌드 배포
+- `.github/workflows/android-apk.yml`: `main`과 `claude/**` 브랜치에 푸시하면 분석 → 테스트 → APK 빌드 → **Releases의 `dev-latest`(최신 테스트 빌드)**에 `gagyebu-dev.apk`를 올린다. 빌드 번호는 실행 번호(`1.0.0+N`)이고, 앱 설정 화면 아래쪽에 표시된다.
+- 사용자는 폰에서 Releases 페이지의 APK를 받아 설치해서 확인한다.
 
 ## 3. 데이터 모델 / 핵심 규칙
 ### 데이터
@@ -140,10 +153,11 @@
 - Java: Android Studio 내장 JDK 25 사용 중. 빌드에서 Java/Gradle 버전 오류가 나면 JDK 21로 지정(`flutter config --jdk-dir=...`).
 - `flutter doctor`: Android toolchain [√]. Visual Studio [X]는 Windows 데스크톱 앱용이라 무시.
 - 실기기: 아직 연결 전. 개발자 옵션 → USB 디버깅 → `flutter devices`로 확인.
-- 클라우드 세션(Claude Code): Flutter는 받을 수 있으나 `dl.google.com`(Android SDK)이 네트워크 정책으로 막혀 있어 APK 빌드 불가. 빌드·실기기 실행은 PC에서 한다.
+- 클라우드 세션(Claude Code): Flutter를 받아서 `flutter analyze`·`flutter test`는 할 수 있다. `dl.google.com`(Android SDK)이 막혀 APK 빌드는 불가 → APK는 GitHub Actions가 만든다.
+  - 클라우드에서 `flutter test`를 돌릴 때 sqlite3 패키지가 GitHub에서 SQLite 바이너리를 받으려다 실패한다. **로컬 테스트 때만** `pubspec.yaml` 끝에 `hooks: user_defines: sqlite3: source: system`을 잠시 붙이고, **커밋 전에 반드시 뺀다**(Android 빌드에는 쓰면 안 된다).
 
 ## 7. TODO (우선순위 순)
-1. Flutter 프로젝트 생성(레포 루트), 기본 구조(DB·설정·상태 관리·테마·하단 탭).
+1. ~~Flutter 프로젝트 생성, 기본 구조(DB·설정·상태 관리·테마·하단 탭), 테스트 빌드 자동 배포~~ (완료: 홈은 이번 달 지출·남은 예산·진행바만, 나머지 탭은 "준비 중" 안내)
 2. 화면별 이식: 온보딩 → 홈 → 입력 → 카테고리 관리 → 설정/세부 설정 → 분석 → 가져오기 → 앱 잠금. 4장 사양과 5장 교훈 기준.
 3. 테스트: 예산 계산·날짜 변경·카테고리 삭제/옮기기·가져오기·초기화 단위 테스트, 5장 회귀 테스트.
 4. 실기기 연결·실행, 기존 기능 동등성 확인.

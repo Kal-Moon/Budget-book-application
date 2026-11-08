@@ -1,0 +1,66 @@
+# 코드를 올릴 때마다 검사·테스트를 하고, 폰에 바로 설치할 수 있는 APK를 만든다.
+# 만든 APK는 Releases의 "dev-latest"(최신 테스트 빌드)에 올라간다.
+name: Android 테스트 빌드
+
+on:
+  push:
+    branches: ['main', 'claude/**']
+    paths-ignore: ['**.md', 'reference/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: 패키지 받기
+        run: flutter pub get
+
+      - name: 정적 분석
+        run: flutter analyze
+
+      - name: 테스트
+        run: flutter test
+
+      - name: APK 빌드
+        run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Releases의 dev-latest에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk gagyebu-dev.apk
+          gh release delete dev-latest --cleanup-tag --yes || true
+          gh release create dev-latest gagyebu-dev.apk \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            --title "최신 테스트 빌드 (빌드 ${{ github.run_number }})" \
+            --notes "브랜치: ${{ github.ref_name }}
+          커밋: ${{ github.sha }}
+          앱의 설정 화면 아래쪽 버전이 1.0.0+${{ github.run_number }}이면 이 빌드예요."
+
+      - name: 빌드 결과 보관
+        uses: actions/upload-artifact@v4
+        with:
+          name: gagyebu-dev-apk
+          path: gagyebu-dev.apk
+          retention-days: 14
