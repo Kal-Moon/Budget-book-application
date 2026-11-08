@@ -20,3 +20,15 @@ final monthEntriesProvider = StreamProvider.family<List<Entry>, String>(
 final monthBudgetProvider = StreamProvider.family<MonthBudget, String>(
   (ref, monthKey) => ref.watch(databaseProvider).watchMonthBudget(monthKey),
 );
+
+/// id → 카테고리(지출·수입 모두).
+final categoryMapProvider = StreamProvider<Map<int, Category>>(
+  (ref) => ref
+      .watch(databaseProvider)
+      .watchAllCategories()
+      .map((list) => {for (final c in list) c.id: c}),
+);
+
+final allEntriesProvider = StreamProvider<List<Entry>>(
+  (ref) => ref.watch(databaseProvider).watchAllEntries(),
+);

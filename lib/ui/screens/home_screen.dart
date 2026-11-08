@@ -7,184 +7,395 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/budget.dart';
+import '../../domain/summary.dart';
+import '../home/date_picker_sheet.dart';
+import '../home/home_view.dart';
+import '../home/home_widgets.dart';
+import '../navigation.dart';
 import '../theme.dart';
+import '../widgets/confirm_sheet.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final monthKey = ref.watch(currentMonthKeyProvider);
-    final entries = ref.watch(monthEntriesProvider(monthKey));
-    final budget = ref.watch(monthBudgetProvider(monthKey));
-    final threshold = ref.watch(
-      settingsProvider.select((s) => s.budgetThreshold),
-    );
-    final month = monthStartOf(monthKey).month;
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _searching = false;
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _closeSearch() {
+    FocusScope.of(context).unfocus();
+    _searchController.clear();
+    setState(() => _searching = false);
+  }
+
+  void _openEntry(Entry entry) {
+    // 내역 수정은 입력 화면을 옮길 때 연결한다.
+    showToast(context, '내역 수정은 입력 화면을 옮긴 뒤 할 수 있어요');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final view = ref.watch(homeViewProvider);
+    final entries = ref.watch(monthEntriesProvider(view.monthKey));
+    final budget = ref.watch(monthBudgetProvider(view.monthKey));
+    final categories = ref.watch(categoryMapProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('가계부')),
-      body: switch ((entries, budget)) {
-        (AsyncData(value: final list), AsyncData(value: final b)) => Column(
-          children: [
-            if (b.totalBudget == 0) const _SetupBanner(),
-            _Summary(
-              month: month,
-              spent: list
-                  .where((e) => e.kind == EntryKind.expense)
-                  .fold(0, (s, e) => s + e.amount),
-              budget: b.totalBudget,
-              threshold: threshold,
-            ),
-            Expanded(child: _EntryList(entries: list)),
-          ],
-        ),
-        (AsyncError(:final error), _) || (_, AsyncError(:final error)) =>
-          Center(child: Text('데이터를 읽지 못했어요\n$error')),
+      appBar: AppBar(
+        title: const Text('가계부'),
+        actions: [
+          IconButton(
+            tooltip: '검색',
+            icon: const Icon(Icons.search),
+            onPressed: () => setState(() => _searching = true),
+          ),
+          _DatePill(view: view),
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: switch ((entries, budget, categories)) {
+        (
+          AsyncData(value: final list),
+          AsyncData(value: final b),
+          AsyncData(value: final cats),
+        ) =>
+          _searching
+              ? _SearchBody(
+                  controller: _searchController,
+                  categories: cats,
+                  onClose: _closeSearch,
+                  onOpenEntry: _openEntry,
+                )
+              : _MonthBody(
+                  view: view,
+                  entries: list,
+                  budget: b,
+                  categories: cats,
+                  onOpenEntry: _openEntry,
+                ),
+        (AsyncError(:final error), _, _) ||
+        (_, AsyncError(:final error), _) ||
+        (
+          _,
+          _,
+          AsyncError(:final error),
+        ) => Center(child: Text('데이터를 읽지 못했어요\n$error')),
         _ => const Center(child: CircularProgressIndicator()),
       },
     );
   }
 }
 
-/// 이번 달 예산이 0원일 때 보여주는 안내.
-class _SetupBanner extends StatelessWidget {
-  const _SetupBanner();
+/// 상단의 날짜 버튼. 하루만 보고 있으면 강조된다.
+class _DatePill extends StatelessWidget {
+  const _DatePill({required this.view});
 
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    color: const Color(0xFFFAEEDA),
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-    child: const Text(
-      '예산이 설정되지 않았어요 · 설정에서 정할 수 있어요',
-      style: TextStyle(fontSize: 12, color: Color(0xFF854F0B)),
-    ),
-  );
-}
-
-/// 이번 달 지출 / 남은 예산 + 진행바.
-class _Summary extends StatelessWidget {
-  const _Summary({
-    required this.month,
-    required this.spent,
-    required this.budget,
-    required this.threshold,
-  });
-
-  final int month;
-  final int spent;
-  final int budget;
-  final int threshold;
+  final HomeView view;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final over = isOverBudget(spent, budget, threshold);
-    final exceeded = budget > 0 && spent > budget;
-    final ratio = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
-    final labelStyle = TextStyle(fontSize: 11.5, color: c.textMuted);
-    const valueStyle = TextStyle(fontSize: 18, fontWeight: FontWeight.w600);
-
-    return Container(
-      color: c.surface2,
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    final filtered = view.selectedDate != null;
+    final month = monthStartOf(view.monthKey);
+    final label = filtered
+        ? dayLabel(view.selectedDate!)
+        : '${month.year}년 ${month.month}월';
+    return Material(
+      color: filtered ? c.accentBg : c.surface0,
+      shape: StadiumBorder(
+        side: BorderSide(color: filtered ? c.accent : c.borderStrong),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: () => showHomeDatePicker(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('$month월 지출', style: labelStyle),
-                    const SizedBox(height: 4),
-                    Text(formatWon(spent), style: valueStyle),
-                  ],
-                ),
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: filtered ? c.accent : c.textPrimary,
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('남은 예산', style: labelStyle),
-                    const SizedBox(height: 4),
-                    Text(
-                      exceeded
-                          ? '${formatWon(spent - budget)} 초과'
-                          : formatWon(budget - spent),
-                      style: valueStyle.copyWith(
-                        color: exceeded ? c.danger : c.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 5,
-              backgroundColor: c.surface0,
-              color: over ? c.danger : c.accent,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              const SizedBox(width: 4),
               Text(
-                '사용 ${budget > 0 ? (spent * 100 ~/ budget) : 0}%',
-                style: labelStyle,
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: filtered ? c.accent : c.textPrimary,
+                ),
               ),
-              Text('총 ${formatWon(budget)}', style: labelStyle),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _EntryList extends StatelessWidget {
-  const _EntryList({required this.entries});
+/// 보고 있는 달(또는 하루)의 요약·필터·내역 목록.
+class _MonthBody extends ConsumerWidget {
+  const _MonthBody({
+    required this.view,
+    required this.entries,
+    required this.budget,
+    required this.categories,
+    required this.onOpenEntry,
+  });
 
+  final HomeView view;
   final List<Entry> entries;
+  final MonthBudget budget;
+  final Map<int, Category> categories;
+  final ValueChanged<Entry> onOpenEntry;
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final settings = ref.watch(settingsProvider);
+    final today = ref.watch(todayProvider);
+    final notifier = ref.read(homeViewProvider.notifier);
+    final month = monthStartOf(view.monthKey).month;
+    final isCurrentMonth = view.monthKey == monthKeyOf(today);
+
+    final monthTotals = EntryTotals(entries);
+    final dayEntries = view.selectedDate == null
+        ? entries
+        : entries.where((e) => e.date == view.selectedDate).toList();
+    final shown = [
+      for (final e in dayEntries)
+        if (switch (view.type) {
+              HomeTypeFilter.all => true,
+              HomeTypeFilter.expense => e.kind == EntryKind.expense,
+              HomeTypeFilter.income => e.kind == EntryKind.income,
+            } &&
+            (view.categoryId == null || e.categoryId == view.categoryId))
+          e,
+    ];
+    final groups = groupByDate(shown);
+
+    final expenseCats = _ofKind(EntryKind.expense);
+    final filterCats = _ofKind(view.categoryKind);
+
+    bool overFor(Entry e) =>
+        e.kind == EntryKind.expense &&
+        budget.mode == BudgetMode.category &&
+        isOverBudget(
+          monthTotals.spentIn(e.categoryId),
+          budget.categoryBudget(e.categoryId),
+          settings.budgetThreshold,
+        );
+
+    String headerLabel(String date) {
+      final label = dayLabel(date);
+      if (date == dateKeyOf(today)) return '오늘 · $label';
+      if (date == dateKeyOf(today.subtract(const Duration(days: 1)))) {
+        return '어제 · $label';
+      }
+      return label;
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isCurrentMonth && budget.totalBudget == 0)
+                const SetupBanner(),
+              SummaryCard(
+                spentLabel: view.selectedDate == null
+                    ? '$month월 지출'
+                    : '선택한 날 지출',
+                spentShown: view.selectedDate == null
+                    ? monthTotals.expense
+                    : EntryTotals(dayEntries).expense,
+                monthSpent: monthTotals.expense,
+                budget: budget.totalBudget,
+                threshold: settings.budgetThreshold,
+              ),
+              if (settings.showHomeIncome)
+                IncomeStrip(month: month, totals: monthTotals),
+              if (view.selectedDate case final date?)
+                DayFilterBanner(
+                  text: '${dayLabel(date)}만 보는 중',
+                  actionLabel: '$month월 전체 보기',
+                  onAction: notifier.clearDay,
+                ),
+              SpendingBreakdown(
+                categories: expenseCats,
+                totals: monthTotals,
+                budget: budget,
+                threshold: settings.budgetThreshold,
+                onTap: () =>
+                    ref.read(appTabProvider.notifier).select(AppTab.analysis),
+              ),
+              Container(
+                color: c.surface2,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Column(
+                  children: [
+                    ChoiceChipRow<HomeTypeFilter>(
+                      items: HomeTypeFilter.values,
+                      selected: view.type,
+                      expand: true,
+                      labelOf: (t) => switch (t) {
+                        HomeTypeFilter.all => '전체',
+                        HomeTypeFilter.expense => '지출',
+                        HomeTypeFilter.income => '수입',
+                      },
+                      onSelected: notifier.setType,
+                    ),
+                    const SizedBox(height: 8),
+                    ChoiceChipRow<int?>(
+                      items: [null, ...filterCats.map((c) => c.id)],
+                      selected: view.categoryId,
+                      labelOf: (id) => id == null
+                          ? '전체'
+                          : '${categories[id]!.icon} ${categories[id]!.name}',
+                      onSelected: notifier.setCategory,
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 0.5, thickness: 0.5, color: c.border),
+            ],
+          ),
+        ),
+        if (groups.isEmpty)
+          SliverToBoxAdapter(
+            child: EmptyMessage(
+              view.selectedDate != null
+                  ? '이 날의 내역이 없어요 🙂'
+                  : entries.isEmpty
+                  ? '아직 $month월 내역이 없어요 🙂'
+                  : '조건에 맞는 내역이 없어요 🙂',
+              hint: '하단 입력 탭에서 추가해보세요',
+            ),
+          )
+        else
+          SliverList.list(
+            children: [
+              for (final g in groups) ...[
+                DayHeader(label: headerLabel(g.date), net: g.net),
+                for (final e in g.entries)
+                  EntryTile(
+                    entry: e,
+                    category: categories[e.categoryId],
+                    overBudget: overFor(e),
+                    onTap: () => onOpenEntry(e),
+                  ),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+      ],
+    );
+  }
+
+  List<Category> _ofKind(EntryKind kind) {
+    final list = categories.values.where((c) => c.kind == kind).toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return list;
+  }
+}
+
+/// 전체 기간 검색.
+class _SearchBody extends ConsumerStatefulWidget {
+  const _SearchBody({
+    required this.controller,
+    required this.categories,
+    required this.onClose,
+    required this.onOpenEntry,
+  });
+
+  final TextEditingController controller;
+  final Map<int, Category> categories;
+  final VoidCallback onClose;
+  final ValueChanged<Entry> onOpenEntry;
+
+  @override
+  ConsumerState<_SearchBody> createState() => _SearchBodyState();
+}
+
+class _SearchBodyState extends ConsumerState<_SearchBody> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    if (entries.isEmpty) {
-      return Center(
-        child: Text(
-          '아직 이번 달 내역이 없어요 🙂\n입력 화면은 다음 단계에서 옮겨올 예정이에요',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: c.textMuted, height: 1.9),
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      itemCount: entries.length,
-      itemBuilder: (context, i) {
-        final e = entries[i];
-        final income = e.kind == EntryKind.income;
-        return ListTile(
-          title: Text(e.description.isEmpty ? '(내역 없음)' : e.description),
-          subtitle: Text('${e.date} ${e.time}'),
-          trailing: Text(
-            '${income ? '+' : ''}${formatWon(e.amount)}',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: income ? c.income : c.textPrimary,
-            ),
+    final all = ref.watch(allEntriesProvider).value ?? const [];
+    final query = widget.controller.text;
+    final results = searchEntries(all, widget.categories, query);
+    final groups = groupByDate(results);
+
+    return Column(
+      children: [
+        Container(
+          color: c.surface2,
+          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: widget.controller,
+                  autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: '구매처·내역·메모·카테고리로 검색 (전체 기간)',
+                    hintStyle: TextStyle(fontSize: 13, color: c.textMuted),
+                    isDense: true,
+                    filled: true,
+                    fillColor: c.surface0,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: c.borderStrong),
+                    ),
+                  ),
+                ),
+              ),
+              TextButton(onPressed: widget.onClose, child: const Text('취소')),
+            ],
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: query.trim().isEmpty
+              ? const EmptyMessage('찾고 싶은 내역을 입력해보세요 🔍')
+              : groups.isEmpty
+              ? EmptyMessage('"${query.trim()}"에 대한 검색 결과가 없어요 🙂')
+              : ListView(
+                  children: [
+                    for (final g in groups) ...[
+                      DayHeader(
+                        label: '${g.date.substring(0, 4)}년 ${dayLabel(g.date)}',
+                      ),
+                      for (final e in g.entries)
+                        EntryTile(
+                          entry: e,
+                          category: widget.categories[e.categoryId],
+                          onTap: () => widget.onOpenEntry(e),
+                        ),
+                    ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }

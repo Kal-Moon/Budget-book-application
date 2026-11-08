@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/core/clock.dart';
@@ -40,6 +42,10 @@ Future<AppDatabase> pumpApp(
     buildNumber: '1',
     buildSignature: '',
   );
+  // 세로로 긴 폰 화면(390×1200)으로 띄워서 목록 아래쪽까지 그려지게 한다.
+  tester.view.physicalSize = const Size(1170, 3600);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
   final prefs = await SharedPreferences.getInstance();
   final db = memoryDatabase();
   addTearDown(db.close);

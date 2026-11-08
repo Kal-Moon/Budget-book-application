@@ -118,6 +118,14 @@ class AppDatabase extends _$AppDatabase {
             ..orderBy([(c) => OrderingTerm(expression: c.sortOrder)]))
           .watch();
 
+  /// 지출·수입 카테고리 전부(id로 찾을 때).
+  Stream<List<Category>> watchAllCategories() => (select(
+    categories,
+  )..orderBy([(c) => OrderingTerm(expression: c.sortOrder)])).watch();
+
+  /// 모든 내역(전체 기간 검색용).
+  Stream<List<Entry>> watchAllEntries() => select(entries).watch();
+
   /// 한 달의 내역. 날짜·시간 최신순.
   Stream<List<Entry>> watchMonthEntries(String monthKey) =>
       (select(entries)

@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'navigation.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/input_screen.dart';
 import 'screens/settings_screen.dart';
 
 /// 하단 탭 4개(홈/입력/분석/설정). 탭을 오가도 각 화면 상태가 유지된다.
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key});
-
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends State<AppShell> {
-  int _index = 0;
 
   static const _screens = [
     HomeScreen(),
@@ -24,12 +19,14 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tab = ref.watch(appTabProvider);
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: IndexedStack(index: tab.index, children: _screens),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: tab.index,
+        onDestinationSelected: (i) =>
+            ref.read(appTabProvider.notifier).select(AppTab.values[i]),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

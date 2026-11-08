@@ -37,4 +37,7 @@ final _won = NumberFormat('#,###', 'ko_KR');
 /// 12345 → '12,345원'
 String formatWon(int amount) => '${_won.format(amount)}원';
 
+/// 12345 → '12,345' (좁은 칸에 '원' 없이 쓸 때)
+String formatNumber(int amount) => _won.format(amount);
+
 String _two(int n) => n.toString().padLeft(2, '0');
