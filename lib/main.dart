@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/today.dart';
 import 'data/settings.dart';
 import 'ui/app_shell.dart';
+import 'ui/onboarding/onboarding_screen.dart';
 import 'ui/theme.dart';
 
 Future<void> main() async {
@@ -27,6 +28,9 @@ class GagyebuApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fontSize = ref.watch(settingsProvider.select((s) => s.fontSize));
+    final onboardingDone = ref.watch(
+      settingsProvider.select((s) => s.onboardingDone),
+    );
     return MaterialApp(
       title: '가계부',
       debugShowCheckedModeBanner: false,
@@ -43,7 +47,7 @@ class GagyebuApp extends ConsumerWidget {
         ),
         child: DateWatcher(child: child!),
       ),
-      home: const AppShell(),
+      home: onboardingDone ? const AppShell() : const OnboardingScreen(),
     );
   }
 }

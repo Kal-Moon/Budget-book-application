@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/budget.dart';
+import '../domain/categories.dart';
 import 'default_categories.dart';
 
 part 'database.g.dart';
@@ -149,6 +150,53 @@ class AppDatabase extends _$AppDatabase {
       categoryAmounts: {for (final c in cats) c.categoryId: c.amount},
     );
   }
+
+  /// 온보딩 결과 저장: 지출 카테고리를 편집한 목록대로 맞추고 이번 달 예산을 저장한다.
+  /// [drafts]에 없는 기존 지출 카테고리는 지우고, id가 없는 것은 새로 만든다.
+  /// [categoryAmounts]는 drafts의 순서(index) → 금액. [mode]가 null이면 예산은 저장하지 않는다(0원).
+  Future<void> saveOnboarding({
+    required List<CategoryDraft> drafts,
+    required String monthKey,
+    BudgetMode? mode,
+    int total = 0,
+    Map<int, int> categoryAmounts = const {},
+  }) => transaction(() async {
+    final keep = drafts.map((d) => d.id).whereType<int>().toSet();
+    await (delete(categories)..where(
+          (c) => c.kind.equalsValue(EntryKind.expense) & c.id.isNotIn(keep),
+        ))
+        .go();
+    final ids = <int>[];
+    for (final (i, d) in drafts.indexed) {
+      final row = CategoriesCompanion(
+        kind: const Value(EntryKind.expense),
+        name: Value(d.name.trim()),
+        icon: Value(d.icon),
+        color: Value(d.color),
+        sortOrder: Value(i),
+      );
+      if (d.id case final id?) {
+        await (update(categories)..where((c) => c.id.equals(id))).write(row);
+        ids.add(id);
+      } else {
+        ids.add(await into(categories).insert(row));
+      }
+    }
+    if (mode != null) {
+      await saveMonthBudget(
+        MonthBudget(
+          monthKey: monthKey,
+          mode: mode,
+          total: total,
+          categoryAmounts: {
+            for (final MapEntry(key: i, value: amount)
+                in categoryAmounts.entries)
+              if (i < ids.length) ids[i]: amount,
+          },
+        ),
+      );
+    }
+  });
 
   /// 한 달의 예산을 통째로 저장한다(설정에서 이번 달 예산을 바꿀 때).
   Future<void> saveMonthBudget(MonthBudget budget) => transaction(() async {
