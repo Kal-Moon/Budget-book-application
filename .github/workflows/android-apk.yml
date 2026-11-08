@@ -38,10 +38,16 @@ jobs:
       - name: 정적 분석
         run: flutter analyze
 
+      # 테스트도 SQLite 바이너리를 GitHub에서 받는다. 일시적인 다운로드 오류에 대비해 다시 시도한다.
       - name: 테스트
-        run: flutter test
+        run: |
+          for i in 1 2 3; do
+            flutter test && exit 0
+            echo "테스트 실패 ($i/3), 30초 후 다시 시도"; sleep 30
+          done
+          exit 1
 
-      # Gradle 배포 파일을 GitHub에서 받다가 일시적으로 504가 나는 경우가 있어 3번까지 다시 시도한다.
+      # Gradle 배포 파일·SQLite 바이너리를 GitHub에서 받다가 일시적으로 504가 나는 경우가 있어 3번까지 다시 시도한다.
       - name: APK 빌드
         run: |
           for i in 1 2 3; do
