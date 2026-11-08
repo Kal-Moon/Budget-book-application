@@ -46,6 +46,7 @@
 ### 테스트 빌드 배포
 - `.github/workflows/android-apk.yml`: `main`과 `claude/**` 브랜치에 푸시하면 분석 → 테스트 → APK 빌드 → **Releases의 `dev-latest`(최신 테스트 빌드)**에 `gagyebu-dev.apk`를 올린다. 빌드 번호는 실행 번호(`1.0.0+N`)이고, 앱 설정 화면 아래쪽에 표시된다.
 - 사용자는 폰에서 Releases 페이지의 APK를 받아 설치해서 확인한다.
+- CI의 테스트 단계는 GitHub에서 SQLite 바이너리를 받지 않고 러너의 시스템 SQLite를 쓴다(pubspec에 임시로 `hooks: user_defines`를 붙였다 되돌림). APK 빌드는 Gradle·Kotlin·SQLite 파일을 GitHub에서 받으므로 GitHub 다운로드 장애(504) 때는 실패한다 → 장애가 풀린 뒤 Actions에서 다시 실행(workflow_dispatch).
 
 ## 3. 데이터 모델 / 핵심 규칙
 ### 데이터
