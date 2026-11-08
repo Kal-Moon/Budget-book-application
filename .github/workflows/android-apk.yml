@@ -38,21 +38,23 @@ jobs:
       - name: 정적 분석
         run: flutter analyze
 
-      # 테스트도 SQLite 바이너리를 GitHub에서 받는다. 일시적인 다운로드 오류에 대비해 다시 시도한다.
+      # 테스트는 GitHub에서 SQLite 바이너리를 받지 않고 러너에 설치된 시스템 SQLite를 쓴다.
+      # (pubspec에 임시로 설정을 붙였다가 테스트 후 원래대로 되돌린다. APK 빌드에는 쓰지 않는다.)
       - name: 테스트
         run: |
-          for i in 1 2 3; do
-            flutter test && exit 0
-            echo "테스트 실패 ($i/3), 30초 후 다시 시도"; sleep 30
-          done
-          exit 1
+          sudo apt-get install -y libsqlite3-dev >/dev/null
+          cp pubspec.yaml /tmp/pubspec.yaml
+          printf '\nhooks:\n  user_defines:\n    sqlite3:\n      source: system\n' >> pubspec.yaml
+          status=0; flutter test || status=$?
+          cp /tmp/pubspec.yaml pubspec.yaml
+          exit $status
 
-      # Gradle 배포 파일·SQLite 바이너리를 GitHub에서 받다가 일시적으로 504가 나는 경우가 있어 3번까지 다시 시도한다.
+      # Gradle 배포 파일·SQLite 바이너리를 GitHub에서 받다가 일시적으로 실패하는 경우가 있어 5번까지 다시 시도한다.
       - name: APK 빌드
         run: |
-          for i in 1 2 3; do
+          for i in 1 2 3 4 5; do
             flutter build apk --release --build-number=${{ github.run_number }} && exit 0
-            echo "빌드 실패 ($i/3), 30초 후 다시 시도"; sleep 30
+            echo "빌드 실패 ($i/5), 60초 후 다시 시도"; sleep 60
           done
           exit 1
 
