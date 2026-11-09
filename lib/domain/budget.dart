@@ -1,3 +1,5 @@
+import '../core/dates.dart';
+
 /// 내역의 종류. DB에는 순서(index)로 저장되므로 순서를 바꾸지 않는다.
 enum EntryKind { expense, income }
 
@@ -54,3 +56,22 @@ class MonthBudget {
 /// 초과 판단: 예산이 있고, 쓴 금액이 예산 × 임계값(%) 이상이면 초과.
 bool isOverBudget(int spent, int budget, int thresholdPercent) =>
     budget > 0 && spent * 100 >= budget * thresholdPercent;
+
+/// 내역을 저장하면 예산을 넘게 되는지 알려주는 문구. 넘지 않으면 null.
+/// [spentBefore]는 이 내역을 뺀 그 달(항목별이면 그 카테고리)의 지출,
+/// [label]은 '식비' 같은 카테고리 이름 또는 '11월'.
+String? budgetWarning({
+  required String label,
+  required int spentBefore,
+  required int amount,
+  required int budget,
+  required int thresholdPercent,
+}) {
+  if (amount <= 0) return null;
+  final projected = spentBefore + amount;
+  if (!isOverBudget(projected, budget, thresholdPercent)) return null;
+  if (projected > budget) {
+    return '$label 예산을 ${formatWon(projected - budget)} 초과해요';
+  }
+  return '$label 예산의 ${projected * 100 ~/ budget}%를 쓰게 돼요';
+}

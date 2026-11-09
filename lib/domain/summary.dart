@@ -71,3 +71,27 @@ List<Entry> searchEntries(
         e,
   ];
 }
+
+/// 내역 자동완성: 같은 카테고리에서 이미 쓴 내역 중 [query]를 포함하는 것(최근 것 먼저, 최대 5개).
+/// 입력한 글자와 똑같은 것은 빼고 보여준다.
+List<String> suggestDescriptions(Iterable<Entry> sameCategory, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return const [];
+  final recent = sameCategory.toList()
+    ..sort(
+      (a, b) => b.date.compareTo(a.date) != 0
+          ? b.date.compareTo(a.date)
+          : b.time.compareTo(a.time),
+    );
+  final seen = <String>{};
+  final out = <String>[];
+  for (final e in recent) {
+    final d = e.description.trim();
+    if (d.isEmpty || d.toLowerCase() == q || !d.toLowerCase().contains(q)) {
+      continue;
+    }
+    if (seen.add(d)) out.add(d);
+    if (out.length == 5) break;
+  }
+  return out;
+}

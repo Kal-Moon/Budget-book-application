@@ -159,6 +159,41 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// 내역 저장. [id]가 있으면 수정, 없으면 새로 추가한다.
+  Future<void> saveEntry(EntriesCompanion entry, {int? id}) async {
+    if (id == null) {
+      await into(entries).insert(entry);
+    } else {
+      await (update(entries)..where((e) => e.id.equals(id))).write(entry);
+    }
+  }
+
+  Future<void> deleteEntry(int id) =>
+      (delete(entries)..where((e) => e.id.equals(id))).go();
+
+  /// 카테고리를 맨 뒤에 추가하고 id를 돌려준다. 이름 검사는 화면에서 먼저 한다.
+  Future<int> addCategory({
+    required EntryKind kind,
+    required String name,
+    required String icon,
+    required int color,
+  }) async {
+    final last =
+        await (select(categories)
+              ..orderBy([(c) => OrderingTerm.desc(c.sortOrder)])
+              ..limit(1))
+            .getSingleOrNull();
+    return into(categories).insert(
+      CategoriesCompanion.insert(
+        kind: kind,
+        name: name.trim(),
+        icon: icon,
+        color: color,
+        sortOrder: Value((last?.sortOrder ?? -1) + 1),
+      ),
+    );
+  }
+
   /// 온보딩 결과 저장: 지출 카테고리를 편집한 목록대로 맞추고 이번 달 예산을 저장한다.
   /// [drafts]에 없는 기존 지출 카테고리는 지우고, id가 없는 것은 새로 만든다.
   /// [categoryAmounts]는 drafts의 순서(index) → 금액. [mode]가 null이면 예산은 저장하지 않는다(0원).

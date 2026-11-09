@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/widgets.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,7 @@ import '../helpers.dart';
 /// 시트·화면 전환 애니메이션이 끝나도록 가짜 시간도 함께 흘려보낸다.
 Future<void> settle(WidgetTester tester) async {
   for (var i = 0; i < 5; i++) {
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
@@ -30,10 +30,13 @@ Future<void> settle(WidgetTester tester) async {
 Future<AppDatabase> pumpApp(
   WidgetTester tester, {
   bool onboardingDone = true,
+  Map<String, Object> settings = const {},
   Future<void> Function(AppDatabase db)? setup,
 }) async {
   SharedPreferences.setMockInitialValues({
     'settings.onboardingDone': onboardingDone,
+    for (final MapEntry(:key, :value) in settings.entries)
+      'settings.$key': value,
   });
   PackageInfo.setMockInitialValues(
     appName: '가계부',
@@ -48,7 +51,12 @@ Future<AppDatabase> pumpApp(
   addTearDown(tester.view.reset);
   final prefs = await SharedPreferences.getInstance();
   final db = memoryDatabase();
-  addTearDown(db.close);
+  // 화면을 먼저 내려서 DB 스트림 구독을 끊고, DB는 실제 시간(runAsync)에서 닫는다.
+  // 가짜 시간에서 닫으면 남은 쿼리를 기다리다 테스트가 끝나지 않는다.
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(db.close);
+  });
   if (setup != null) await tester.runAsync(() => setup(db));
 
   await tester.pumpWidget(

@@ -13,7 +13,7 @@ import '../home/home_view.dart';
 import '../home/home_widgets.dart';
 import '../navigation.dart';
 import '../theme.dart';
-import '../widgets/confirm_sheet.dart';
+import 'input_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -38,10 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _searching = false);
   }
 
-  void _openEntry(Entry entry) {
-    // 내역 수정은 입력 화면을 옮길 때 연결한다.
-    showToast(context, '내역 수정은 입력 화면을 옮긴 뒤 할 수 있어요');
-  }
+  void _openEntry(Entry entry) => openEntryEditor(context, entry);
 
   @override
   Widget build(BuildContext context) {
