@@ -167,6 +167,10 @@ class _MonthBody extends ConsumerWidget {
     final month = monthStartOf(view.monthKey).month;
     final isCurrentMonth = view.monthKey == monthKeyOf(today);
 
+    // 필터로 고른 카테고리가 그사이 삭제됐으면 필터를 푼 것으로 본다.
+    final categoryFilter = categories.containsKey(view.categoryId)
+        ? view.categoryId
+        : null;
     final monthTotals = EntryTotals(entries);
     final dayEntries = view.selectedDate == null
         ? entries
@@ -178,7 +182,7 @@ class _MonthBody extends ConsumerWidget {
               HomeTypeFilter.expense => e.kind == EntryKind.expense,
               HomeTypeFilter.income => e.kind == EntryKind.income,
             } &&
-            (view.categoryId == null || e.categoryId == view.categoryId))
+            (categoryFilter == null || e.categoryId == categoryFilter))
           e,
     ];
     final groups = groupByDate(shown);
@@ -258,7 +262,7 @@ class _MonthBody extends ConsumerWidget {
                     const SizedBox(height: 8),
                     ChoiceChipRow<int?>(
                       items: [null, ...filterCats.map((c) => c.id)],
-                      selected: view.categoryId,
+                      selected: categoryFilter,
                       labelOf: (id) => id == null
                           ? '전체'
                           : '${categories[id]!.icon} ${categories[id]!.name}',

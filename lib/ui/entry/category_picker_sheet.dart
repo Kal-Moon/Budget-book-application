@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../domain/budget.dart';
 import '../../domain/categories.dart';
+import '../categories/category_manage_screen.dart';
 import '../theme.dart';
 
 /// 카테고리 선택 시트. 고른(또는 새로 추가한) 카테고리 id를 돌려준다.
@@ -163,6 +164,16 @@ class _CategoryPickerSheetState extends ConsumerState<_CategoryPickerSheet> {
                     child: const Text('추가'),
                   ),
                 ],
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () {
+                  // 시트를 닫고 관리 화면으로. 돌아오면 다시 골라야 한다.
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  openCategoryManage(navigator.context, kind: widget.kind);
+                },
+                child: const Text('카테고리 관리 ›'),
               ),
             ],
           ),

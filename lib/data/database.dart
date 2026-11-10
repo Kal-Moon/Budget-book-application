@@ -194,6 +194,73 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> updateCategory(
+    int id, {
+    required String name,
+    required String icon,
+    required int color,
+  }) => (update(categories)..where((c) => c.id.equals(id))).write(
+    CategoriesCompanion(
+      name: Value(name.trim()),
+      icon: Value(icon),
+      color: Value(color),
+    ),
+  );
+
+  /// 카테고리에 속한 내역 수(삭제 전에 옮길지 물어볼 때).
+  Future<int> countEntriesIn(int categoryId) async {
+    final count = entries.id.count();
+    final query = selectOnly(entries)
+      ..addColumns([count])
+      ..where(entries.categoryId.equals(categoryId));
+    return (await query.getSingle()).read(count) ?? 0;
+  }
+
+  /// 항목별 방식인 달의 카테고리 예산 하나를 바꾼다.
+  Future<void> setCategoryBudget(String monthKey, int categoryId, int amount) =>
+      into(monthCategoryBudgets).insertOnConflictUpdate(
+        MonthCategoryBudgetsCompanion.insert(
+          monthKey: monthKey,
+          categoryId: categoryId,
+          amount: amount,
+        ),
+      );
+
+  /// 카테고리 삭제.
+  /// [moveTo]가 있으면 내역과 **모든 달의 예산**을 그 카테고리로 옮긴다
+  /// (예산을 그냥 지우면 예산을 지켰던 과거 달이 "초과"로 바뀐다).
+  /// [moveTo]가 없으면 내역과 예산을 함께 지운다.
+  Future<void> deleteCategory(int id, {int? moveTo}) => transaction(() async {
+    final budgets = await (select(
+      monthCategoryBudgets,
+    )..where((b) => b.categoryId.equals(id))).get();
+    if (moveTo != null) {
+      await (update(entries)..where((e) => e.categoryId.equals(id))).write(
+        EntriesCompanion(categoryId: Value(moveTo)),
+      );
+      for (final b in budgets) {
+        final target =
+            await (select(monthCategoryBudgets)..where(
+                  (t) =>
+                      t.monthKey.equals(b.monthKey) &
+                      t.categoryId.equals(moveTo),
+                ))
+                .getSingleOrNull();
+        await setCategoryBudget(
+          b.monthKey,
+          moveTo,
+          (target?.amount ?? 0) + b.amount,
+        );
+      }
+    } else {
+      await (delete(entries)..where((e) => e.categoryId.equals(id))).go();
+    }
+    await (delete(
+      monthCategoryBudgets,
+    )..where((b) => b.categoryId.equals(id))).go();
+    await (delete(categories)..where((c) => c.id.equals(id))).go();
+  });
+
   /// 온보딩 결과 저장: 지출 카테고리를 편집한 목록대로 맞추고 이번 달 예산을 저장한다.
   /// [drafts]에 없는 기존 지출 카테고리는 지우고, id가 없는 것은 새로 만든다.
   /// [categoryAmounts]는 drafts의 순서(index) → 금액. [mode]가 null이면 예산은 저장하지 않는다(0원).

@@ -147,7 +147,10 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
       _toast(_kind == EntryKind.expense ? '💰 금액을 입력해주세요' : '💰 수입 금액을 입력해주세요');
       return;
     }
-    if (_categoryId == null) {
+    // 고른 카테고리가 카테고리 관리에서 삭제됐을 수도 있다.
+    final categories = ref.read(categoryMapProvider).value ?? const {};
+    if (!categories.containsKey(_categoryId)) {
+      setState(() => _categoryId = null);
       _toast('🗂️ 카테고리를 선택해주세요');
       await _pickCategory();
       return;
