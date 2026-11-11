@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../data/settings.dart';
+import '../analysis/analysis_view.dart';
 import '../home/home_view.dart';
 import '../navigation.dart';
 import '../theme.dart';
@@ -80,6 +81,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
   await ref.read(databaseProvider).clearRecords();
   // 화면 상태(보던 탭·달·필터)도 처음으로.
   container.invalidate(homeViewProvider);
+  container.invalidate(analysisViewProvider);
   container.read(appTabProvider.notifier).select(AppTab.home);
   if (everything) {
     await settings.clearAll();

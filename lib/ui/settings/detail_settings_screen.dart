@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/today.dart';
+import '../../data/providers.dart';
 import '../../data/settings.dart';
+import '../../domain/analysis.dart';
+import '../../domain/budget.dart';
+import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
 import 'settings_widgets.dart';
 
-/// 세부 설정: 실수 방지, 글자 크기, 예산 초과 미리 알림. 기본값은 모두 꺼짐/기본.
+/// 세부 설정: 실수 방지, 글자 크기, 예산 초과 미리 알림, 분석 강조색. 기본값은 모두 꺼짐/기본.
 class DetailSettingsScreen extends ConsumerWidget {
   const DetailSettingsScreen({super.key});
 
@@ -13,6 +18,13 @@ class DetailSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final highlight = highlightColorOf(s.highlightColor);
+    final categoryMode =
+        ref
+            .watch(monthBudgetProvider(ref.watch(currentMonthKeyProvider)))
+            .value
+            ?.mode ==
+        BudgetMode.category;
     return Scaffold(
       appBar: AppBar(title: const Text('세부 설정')),
       body: ListView(
@@ -78,6 +90,99 @@ class DetailSettingsScreen extends ConsumerWidget {
                     v == 100 ? '예산을 다 썼을 때만 초과로 표시해요' : '예산의 $v%에 도달하면 미리 알려줘요',
                   );
                 },
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: '분석 화면 강조 표시',
+            children: [
+              const SettingsNote('예산을 넘은 카테고리를 분석 화면에서 이 색으로 강조해요.'),
+              if (categoryMode)
+                SettingsToggle(
+                  label: '총 지출도 함께 강조',
+                  description: '항목별 예산의 합계를 넘으면 가운데 총 지출 금액도 강조해요',
+                  value: s.totalHighlightInCategoryMode,
+                  onChanged: (v) => notifier.update(
+                    (s) => s.copyWith(totalHighlightInCategoryMode: v),
+                  ),
+                ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  for (final h in highlightColors)
+                    Semantics(
+                      label: '강조색 ${h.key}',
+                      selected: h.key == highlight.key,
+                      button: true,
+                      child: GestureDetector(
+                        onTap: () => notifier.update(
+                          (s) => s.copyWith(highlightColor: h.key),
+                        ),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Color(h.swatch),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: h.key == highlight.key
+                                  ? context.colors.textPrimary
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const SettingsNote('이렇게 표시돼요'),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Color(highlight.background),
+                  border: Border.all(
+                    color: Color(highlight.border),
+                    width: 0.5,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🍚', style: TextStyle(fontSize: 15)),
+                    const SizedBox(width: 9),
+                    const Text('식비', style: TextStyle(fontSize: 13)),
+                    Container(
+                      margin: const EdgeInsets.only(left: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Color(highlight.text),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '초과',
+                        style: TextStyle(fontSize: 9.5, color: Colors.white),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '120,000원',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(highlight.text),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

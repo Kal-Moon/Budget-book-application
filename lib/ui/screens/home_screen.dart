@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/budget.dart';
 import '../../domain/summary.dart';
+import '../analysis/analysis_view.dart';
 import '../budget/budget_sheet.dart';
 import '../home/date_picker_sheet.dart';
 import '../home/home_view.dart';
@@ -241,8 +242,11 @@ class _MonthBody extends ConsumerWidget {
                 totals: monthTotals,
                 budget: budget,
                 threshold: settings.budgetThreshold,
-                onTap: () =>
-                    ref.read(appTabProvider.notifier).select(AppTab.analysis),
+                onTap: () {
+                  // 분석은 홈과 따로 움직인다: 항상 이번 달의 카테고리 비중을 연다.
+                  ref.read(analysisViewProvider.notifier).showCurrentMonth();
+                  ref.read(appTabProvider.notifier).select(AppTab.analysis);
+                },
               ),
               Container(
                 color: c.surface2,

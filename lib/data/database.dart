@@ -159,6 +159,18 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// 예산을 정한 모든 달(월별 추이의 예산 선). 'YYYY-MM' → 예산.
+  Stream<Map<String, MonthBudget>> watchAllBudgets() =>
+      customSelect(
+        'SELECT 1',
+        readsFrom: {monthBudgets, monthCategoryBudgets},
+      ).watch().asyncMap((_) async {
+        final heads = await select(monthBudgets).get();
+        return {
+          for (final h in heads) h.monthKey: await getMonthBudget(h.monthKey),
+        };
+      });
+
   /// [monthKey]보다 앞선 달 중 예산을 정한 가장 최근 달의 예산. 없으면 null.
   Future<MonthBudget?> latestBudgetBefore(String monthKey) async {
     final row =

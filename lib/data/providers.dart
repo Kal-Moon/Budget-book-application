@@ -32,3 +32,7 @@ final categoryMapProvider = StreamProvider<Map<int, Category>>(
 final allEntriesProvider = StreamProvider<List<Entry>>(
   (ref) => ref.watch(databaseProvider).watchAllEntries(),
 );
+
+final allBudgetsProvider = StreamProvider<Map<String, MonthBudget>>(
+  (ref) => ref.watch(databaseProvider).watchAllBudgets(),
+);
