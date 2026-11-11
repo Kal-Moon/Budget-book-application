@@ -9,6 +9,8 @@ import 'package:gagyebu/data/providers.dart';
 import 'package:gagyebu/data/settings.dart';
 import 'package:gagyebu/main.dart';
 import 'package:gagyebu/ui/import/import_screen.dart';
+import 'package:gagyebu/ui/lock/lock_controller.dart';
+import 'package:gagyebu/ui/lock/locked_back_blocker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -64,6 +66,15 @@ Future<AppDatabase> pumpApp(
     await tester.runAsync(db.close);
   });
   if (setup != null) await tester.runAsync(() => setup(db));
+
+  // main()처럼 앱보다 먼저 등록해서, 잠긴 동안의 뒤로가기를 앱보다 먼저 받는다.
+  final backBlocker = LockedBackBlocker(() {
+    final app = find.byType(GagyebuApp).evaluate();
+    if (app.isEmpty) return false;
+    return ProviderScope.containerOf(app.first).read(lockProvider).locked;
+  });
+  tester.binding.addObserver(backBlocker);
+  addTearDown(() => tester.binding.removeObserver(backBlocker));
 
   await tester.pumpWidget(
     ProviderScope(

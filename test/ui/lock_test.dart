@@ -154,6 +154,23 @@ void main() {
       expect(find.text('11월 지출'), findsOneWidget);
     });
 
+    testWidgets('잠겨 있는 동안 뒤로가기는 무시하고, 열린 뒤에는 평소대로 동작한다', (tester) async {
+      await pumpApp(
+        tester,
+        settings: {'exitConfirm': true},
+        secrets: lockedStore(),
+      );
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.text('PIN을 입력해주세요'), findsOneWidget);
+      expect(find.text('앱을 종료할까요?'), findsNothing);
+
+      await enterPin(tester, '1234');
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.text('앱을 종료할까요?'), findsOneWidget);
+    });
+
     testWidgets('지문·얼굴을 켜 뒀으면 인식 창이 먼저 뜨고, 성공하면 바로 열린다', (tester) async {
       final bio = FakeBiometricAuth(available: true, succeeds: true);
       await pumpApp(
