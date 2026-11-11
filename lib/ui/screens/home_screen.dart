@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/budget.dart';
 import '../../domain/summary.dart';
+import '../budget/budget_sheet.dart';
 import '../home/date_picker_sheet.dart';
 import '../home/home_view.dart';
 import '../home/home_widgets.dart';
@@ -215,7 +216,7 @@ class _MonthBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (isCurrentMonth && budget.totalBudget == 0)
-                const SetupBanner(),
+                SetupBanner(onSetup: () => showBudgetSheet(context)),
               SummaryCard(
                 spentLabel: view.selectedDate == null
                     ? '$month월 지출'

@@ -24,14 +24,18 @@ class MonthBudget {
     required this.mode,
     this.total = 0,
     this.categoryAmounts = const {},
-  });
+  }) : isSet = true;
 
   /// 예산을 아직 정하지 않은 달. 0원으로 취급한다.
   const MonthBudget.empty(this.monthKey, {this.mode = BudgetMode.category})
     : total = 0,
-      categoryAmounts = const {};
+      categoryAmounts = const {},
+      isSet = false;
 
   final String monthKey;
+
+  /// 이 달 예산을 정한 적이 있는지(0원으로 정한 것도 정한 것이다).
+  final bool isSet;
   final BudgetMode mode;
 
   /// 총 예산 방식의 총액.
@@ -75,3 +79,11 @@ String? budgetWarning({
   }
   return '$label 예산의 ${projected * 100 ~/ budget}%를 쓰게 돼요';
 }
+
+/// [source] 달의 예산을 [monthKey] 달로 그대로 옮긴 것("지난달 예산 그대로 쓰기").
+MonthBudget copyBudgetTo(String monthKey, MonthBudget source) => MonthBudget(
+  monthKey: monthKey,
+  mode: source.mode,
+  total: source.total,
+  categoryAmounts: source.categoryAmounts,
+);

@@ -159,6 +159,17 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// [monthKey]보다 앞선 달 중 예산을 정한 가장 최근 달의 예산. 없으면 null.
+  Future<MonthBudget?> latestBudgetBefore(String monthKey) async {
+    final row =
+        await (select(monthBudgets)
+              ..where((b) => b.monthKey.isSmallerThanValue(monthKey))
+              ..orderBy([(b) => OrderingTerm.desc(b.monthKey)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : getMonthBudget(row.monthKey);
+  }
+
   /// 내역 저장. [id]가 있으면 수정, 없으면 새로 추가한다.
   Future<void> saveEntry(EntriesCompanion entry, {int? id}) async {
     if (id == null) {

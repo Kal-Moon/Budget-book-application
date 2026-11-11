@@ -8,16 +8,35 @@ import '../theme.dart';
 
 /// 이번 달 예산이 0원일 때 보여주는 안내.
 class SetupBanner extends StatelessWidget {
-  const SetupBanner({super.key});
+  const SetupBanner({super.key, required this.onSetup});
+
+  final VoidCallback onSetup;
 
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     color: const Color(0xFFFAEEDA),
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-    child: const Text(
-      '예산이 설정되지 않았어요 · 설정에서 정할 수 있어요',
-      style: TextStyle(fontSize: 12, color: Color(0xFF854F0B)),
+    padding: const EdgeInsets.fromLTRB(18, 0, 6, 0),
+    child: Row(
+      children: [
+        const Expanded(
+          child: Text(
+            '예산이 설정되지 않았어요',
+            style: TextStyle(fontSize: 12, color: Color(0xFF854F0B)),
+          ),
+        ),
+        TextButton(
+          onPressed: onSetup,
+          child: const Text(
+            '지금 설정하기',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: Color(0xFF854F0B),
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

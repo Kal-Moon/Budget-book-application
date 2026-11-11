@@ -31,6 +31,7 @@ class AppSettings {
     this.budgetThreshold = 100,
     this.highlightColor = 'red',
     this.totalHighlightInCategoryMode = false,
+    this.budgetPromptMonth = '',
   });
 
   final bool onboardingDone;
@@ -47,6 +48,9 @@ class AppSettings {
   final String highlightColor;
   final bool totalHighlightInCategoryMode;
 
+  /// 새 달 예산 팝업을 마지막으로 처리한 달('YYYY-MM'). 같은 달에 다시 묻지 않는다.
+  final String budgetPromptMonth;
+
   AppSettings copyWith({
     bool? onboardingDone,
     bool? autoCopyBudget,
@@ -59,6 +63,7 @@ class AppSettings {
     int? budgetThreshold,
     String? highlightColor,
     bool? totalHighlightInCategoryMode,
+    String? budgetPromptMonth,
   }) => AppSettings(
     onboardingDone: onboardingDone ?? this.onboardingDone,
     autoCopyBudget: autoCopyBudget ?? this.autoCopyBudget,
@@ -72,6 +77,7 @@ class AppSettings {
     highlightColor: highlightColor ?? this.highlightColor,
     totalHighlightInCategoryMode:
         totalHighlightInCategoryMode ?? this.totalHighlightInCategoryMode,
+    budgetPromptMonth: budgetPromptMonth ?? this.budgetPromptMonth,
   );
 
   Map<String, Object> toJson() => {
@@ -86,6 +92,7 @@ class AppSettings {
     'budgetThreshold': budgetThreshold,
     'highlightColor': highlightColor,
     'totalHighlightInCategoryMode': totalHighlightInCategoryMode,
+    'budgetPromptMonth': budgetPromptMonth,
   };
 
   /// 저장된 값이 없거나 형식이 맞지 않으면 기본값을 쓴다.
@@ -116,6 +123,7 @@ class AppSettings {
         'totalHighlightInCategoryMode',
         d.totalHighlightInCategoryMode,
       ),
+      budgetPromptMonth: pick('budgetPromptMonth', d.budgetPromptMonth),
     );
   }
 
