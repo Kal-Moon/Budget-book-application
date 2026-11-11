@@ -8,6 +8,7 @@ import '../../data/settings.dart';
 import '../../domain/budget.dart';
 import '../budget/budget_sheet.dart';
 import '../categories/category_manage_screen.dart';
+import '../import/import_screen.dart';
 import '../settings/detail_settings_screen.dart';
 import '../settings/reset_flow.dart';
 import '../settings/settings_widgets.dart';
@@ -118,7 +119,10 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               SettingsRow(
                 label: '다른 가계부에서 가져오기',
-                onTap: () => showToast(context, '가져오기는 다음 단계에서 옮겨올 예정이에요'),
+                onTap: () => openImport(context),
+              ),
+              const SettingsNote(
+                '쓰던 가계부 앱에서 내보내기 한 엑셀(.xlsx) 또는 CSV 파일을 올리면 읽어와요.',
               ),
               SettingsRow(
                 label: '데이터 초기화',

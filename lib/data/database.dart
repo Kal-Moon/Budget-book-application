@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/budget.dart';
 import '../domain/categories.dart';
+import '../domain/import.dart';
 import 'default_categories.dart';
 
 part 'database.g.dart';
@@ -282,6 +283,68 @@ class AppDatabase extends _$AppDatabase {
       monthCategoryBudgets,
     )..where((b) => b.categoryId.equals(id))).go();
     await (delete(categories)..where((c) => c.id.equals(id))).go();
+  });
+
+  /// 가져온 내역을 한 번에 저장하고 (지출 건수, 수입 건수)를 돌려준다.
+  /// [choices]: 종류 → 파일의 분류 이름 → 연결할 카테고리 id(null이면 새로 만들기).
+  /// 분류가 빈 내역은 같은 종류의 "미분류"로 들어간다.
+  ///
+  /// 카테고리는 **이 호출 안에서 매번 DB를 보고** 찾거나 만든다. id를 호출 밖에
+  /// 기억해 두지 않는다(초기화·삭제 뒤 없는 카테고리를 가리키던 버그가 있었다).
+  Future<(int, int)> importEntries(
+    List<ImportRow> rows,
+    Map<EntryKind, Map<String, int?>> choices,
+  ) => transaction(() async {
+    final existing = await select(categories).get();
+    final ids = {for (final c in existing) c.id};
+    final byName = {for (final c in existing) (c.kind, c.name): c.id};
+    var created = existing.length;
+
+    Future<int> findOrCreate(EntryKind kind, String name, String? icon) async {
+      final found = byName[(kind, name)];
+      if (found != null) return found;
+      final id = await addCategory(
+        kind: kind,
+        name: name,
+        icon: icon ?? newCategoryEmojis[created % newCategoryEmojis.length],
+        color: newCategoryColor,
+      );
+      created++;
+      ids.add(id);
+      return byName[(kind, name)] = id;
+    }
+
+    var expense = 0;
+    var income = 0;
+    for (final r in rows) {
+      final int categoryId;
+      final chosen = choices[r.kind]?[r.categoryRaw];
+      if (r.categoryRaw.isEmpty) {
+        categoryId = await findOrCreate(r.kind, uncategorizedName, '📦');
+      } else if (chosen != null && ids.contains(chosen)) {
+        categoryId = chosen;
+      } else {
+        categoryId = await findOrCreate(
+          r.kind,
+          importCategoryName(r.categoryRaw),
+          null,
+        );
+      }
+      await into(entries).insert(
+        EntriesCompanion.insert(
+          kind: r.kind,
+          date: r.date,
+          time: r.time,
+          categoryId: categoryId,
+          amount: r.amount,
+          place: Value(r.place),
+          description: Value(r.description),
+          memo: Value(r.memo),
+        ),
+      );
+      r.kind == EntryKind.expense ? expense++ : income++;
+    }
+    return (expense, income);
   });
 
   /// 온보딩 결과 저장: 지출 카테고리를 편집한 목록대로 맞추고 이번 달 예산을 저장한다.

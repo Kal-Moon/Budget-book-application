@@ -7,6 +7,7 @@ import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/data/providers.dart';
 import 'package:gagyebu/data/settings.dart';
 import 'package:gagyebu/main.dart';
+import 'package:gagyebu/ui/import/import_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,6 +33,7 @@ Future<AppDatabase> pumpApp(
   bool onboardingDone = true,
   Map<String, Object> settings = const {},
   Future<void> Function(AppDatabase db)? setup,
+  PickedImportFile? importFile,
 }) async {
   SharedPreferences.setMockInitialValues({
     'settings.onboardingDone': onboardingDone,
@@ -65,6 +67,8 @@ Future<AppDatabase> pumpApp(
         sharedPreferencesProvider.overrideWithValue(prefs),
         databaseProvider.overrideWithValue(db),
         clockProvider.overrideWithValue(FakeClock(DateTime(2026, 11, 8, 10))),
+        // 가져오기에서 "파일 선택"을 누르면 이 파일을 고른 것으로 한다.
+        importFilePickerProvider.overrideWithValue(() async => importFile),
       ],
       child: const GagyebuApp(),
     ),
