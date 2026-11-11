@@ -6,11 +6,13 @@ import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/analysis.dart';
 import '../../domain/budget.dart';
+import '../lock/lock_controller.dart';
+import '../lock/lock_setup.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
 import 'settings_widgets.dart';
 
-/// 세부 설정: 실수 방지, 글자 크기, 예산 초과 미리 알림, 분석 강조색. 기본값은 모두 꺼짐/기본.
+/// 세부 설정: 실수 방지, 글자 크기, 예산 초과 미리 알림, 분석 강조색, 앱 잠금. 기본값은 모두 꺼짐/기본.
 class DetailSettingsScreen extends ConsumerWidget {
   const DetailSettingsScreen({super.key});
 
@@ -18,6 +20,7 @@ class DetailSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final lock = ref.watch(lockProvider);
     final highlight = highlightColorOf(s.highlightColor);
     final categoryMode =
         ref
@@ -183,6 +186,61 @@ class DetailSettingsScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: '앱 잠금',
+            children: [
+              SettingsToggle(
+                label: 'PIN으로 잠그기',
+                description: lock.enabled
+                    ? '설정됨 · 앱을 열 때마다 4자리 번호를 입력해요'
+                    : '앱을 열 때마다 4자리 번호를 입력해야 해요',
+                value: lock.enabled,
+                onChanged: (v) async {
+                  if (v) {
+                    await startLockSetup(context, ref);
+                  } else if (await confirmCurrentPin(context)) {
+                    await ref.read(lockProvider.notifier).disable();
+                    if (context.mounted) showToast(context, '앱 잠금을 껐어요');
+                  }
+                },
+              ),
+              if (lock.enabled) ...[
+                SettingsRow(
+                  label: 'PIN 바꾸기',
+                  onTap: () async {
+                    if (!await confirmCurrentPin(context) || !context.mounted) {
+                      return;
+                    }
+                    final pin = await askNewPin(context);
+                    if (pin == null) return;
+                    await ref.read(lockProvider.notifier).setPin(pin);
+                    if (context.mounted) showToast(context, '✓ PIN을 바꿨어요');
+                  },
+                ),
+                SettingsRow(
+                  label: 'PIN을 잊었을 때',
+                  value: switch ((lock.biometric, lock.question != null)) {
+                    (true, true) => '지문·얼굴 + 질문',
+                    (true, false) => '지문·얼굴',
+                    (false, true) => '질문',
+                    (false, false) => '정하지 않음',
+                  },
+                  onTap: () async {
+                    if (!await confirmCurrentPin(context) || !context.mounted) {
+                      return;
+                    }
+                    if (await editRecovery(context) && context.mounted) {
+                      showToast(context, '✓ 복구 방법을 저장했어요');
+                    }
+                  },
+                ),
+              ],
+              const SettingsNote(
+                '앱을 1분 넘게 떠나 있다가 돌아오면 다시 잠겨요. '
+                '다른 사람이 폰을 잠깐 볼 때를 막는 간단한 보호 기능이에요.',
               ),
             ],
           ),

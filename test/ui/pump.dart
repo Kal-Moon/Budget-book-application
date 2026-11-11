@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/core/clock.dart';
 import 'package:gagyebu/data/database.dart';
+import 'package:gagyebu/data/lock_store.dart';
 import 'package:gagyebu/data/providers.dart';
 import 'package:gagyebu/data/settings.dart';
 import 'package:gagyebu/main.dart';
@@ -34,6 +35,9 @@ Future<AppDatabase> pumpApp(
   Map<String, Object> settings = const {},
   Future<void> Function(AppDatabase db)? setup,
   PickedImportFile? importFile,
+  MemorySecretStore? secrets,
+  FakeBiometricAuth? biometric,
+  FakeClock? clock,
 }) async {
   SharedPreferences.setMockInitialValues({
     'settings.onboardingDone': onboardingDone,
@@ -66,7 +70,14 @@ Future<AppDatabase> pumpApp(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         databaseProvider.overrideWithValue(db),
-        clockProvider.overrideWithValue(FakeClock(DateTime(2026, 11, 8, 10))),
+        clockProvider.overrideWithValue(
+          clock ?? FakeClock(DateTime(2026, 11, 8, 10)),
+        ),
+        // 잠금 정보는 메모리에, 지문·얼굴 인식은 가짜로(기본: 잠금 없음, 인식 불가).
+        secretStoreProvider.overrideWithValue(secrets ?? MemorySecretStore()),
+        biometricAuthProvider.overrideWithValue(
+          biometric ?? FakeBiometricAuth(),
+        ),
         // 가져오기에서 "파일 선택"을 누르면 이 파일을 고른 것으로 한다.
         importFilePickerProvider.overrideWithValue(() async => importFile),
       ],

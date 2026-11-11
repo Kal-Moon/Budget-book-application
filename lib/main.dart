@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/today.dart';
 import 'data/settings.dart';
 import 'ui/app_shell.dart';
+import 'ui/lock/lock_controller.dart';
+import 'ui/lock/lock_screen.dart';
 import 'ui/onboarding/onboarding_screen.dart';
 import 'ui/theme.dart';
 
@@ -14,12 +16,26 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko_KR');
   final prefs = await SharedPreferences.getInstance();
-  runApp(
-    ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: const GagyebuApp(),
-    ),
+  final container = ProviderContainer(
+    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
   );
+  // 잠긴 동안 뒤로가기가 잠금 화면 아래의 화면을 닫지 못하게, 앱보다 먼저 등록한다.
+  WidgetsBinding.instance.addObserver(
+    _LockedBackBlocker(() => container.read(lockProvider).locked),
+  );
+  runApp(
+    UncontrolledProviderScope(container: container, child: const GagyebuApp()),
+  );
+}
+
+/// 잠겨 있을 때 뒤로가기를 삼킨다(먼저 등록된 관찰자가 처리하면 화면은 닫히지 않는다).
+class _LockedBackBlocker with WidgetsBindingObserver {
+  _LockedBackBlocker(this.isLocked);
+
+  final bool Function() isLocked;
+
+  @override
+  Future<bool> didPopRoute() async => isLocked();
 }
 
 class GagyebuApp extends ConsumerWidget {
@@ -45,7 +61,7 @@ class GagyebuApp extends ConsumerWidget {
             MediaQuery.textScalerOf(context).scale(1) * fontSize.scale,
           ),
         ),
-        child: DateWatcher(child: child!),
+        child: LockGate(child: DateWatcher(child: child!)),
       ),
       home: onboardingDone ? const AppShell() : const OnboardingScreen(),
     );

@@ -5,6 +5,7 @@ import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../analysis/analysis_view.dart';
 import '../home/home_view.dart';
+import '../lock/lock_controller.dart';
 import '../navigation.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
@@ -40,7 +41,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
             ),
             _ResetOption(
               title: '앱 전체 초기화',
-              description: '모든 기록과 설정을 지우고, 앱을 막 설치한 상태로 되돌려요.',
+              description: '모든 기록과 설정, 앱 잠금까지 지우고 앱을 막 설치한 상태로 되돌려요.',
               onTap: () => Navigator.pop(context, _ResetKind.everything),
             ),
           ],
@@ -76,6 +77,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
 
   final messenger = ScaffoldMessenger.of(context);
   final settings = ref.read(settingsProvider.notifier);
+  final lock = ref.read(lockProvider.notifier);
   final container = ProviderScope.containerOf(context);
   // 기록은 통째로 비우고 기본 카테고리만 다시 넣는다(항목을 나열하지 않는다).
   await ref.read(databaseProvider).clearRecords();
@@ -85,6 +87,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
   container.read(appTabProvider.notifier).select(AppTab.home);
   if (everything) {
     await settings.clearAll();
+    await lock.disable();
   } else {
     // 온보딩부터 다시 시작한다. 새 달 예산 팝업 기록도 기록에 딸린 값이라 지운다.
     await settings.update(

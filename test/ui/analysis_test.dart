@@ -6,6 +6,7 @@ import 'package:gagyebu/core/today.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
 import 'package:gagyebu/ui/analysis/analysis_view.dart';
+import 'package:gagyebu/ui/analysis/analysis_widgets.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers.dart';
@@ -200,7 +201,10 @@ void main() {
     // 총 지출 50,000 > 항목별 합계 45,000 → 가운데 금액이 민트 강조색 글자색으로.
     final total = tester.widget<Text>(
       find
-          .descendant(of: find.byType(Stack), matching: find.text('50,000원'))
+          .descendant(
+            of: find.byType(DonutChart),
+            matching: find.text('50,000원'),
+          )
           .first,
     );
     expect(total.style!.color, const Color(0xFF085041));
