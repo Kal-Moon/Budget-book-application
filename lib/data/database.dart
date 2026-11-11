@@ -113,6 +113,56 @@ class AppDatabase extends _$AppDatabase {
     await _insertDefaultCategories();
   });
 
+  /// 백업용: 모든 테이블의 모든 행을 테이블 이름 → 행 목록으로 돌려준다.
+  /// 테이블을 나열하지 않아서, 테이블이 추가돼도 자동으로 포함된다.
+  Future<Map<String, List<Map<String, Object?>>>> exportAllTables() =>
+      transaction(() async {
+        return {
+          for (final table in allTables)
+            table.actualTableName: [
+              for (final row in await customSelect(
+                'SELECT * FROM "${table.actualTableName}"',
+                readsFrom: {table},
+              ).get())
+                row.data,
+            ],
+        };
+      });
+
+  /// 백업에서 복원: 지금 기록을 모두 지우고 [tables]의 행으로 바꾼다.
+  /// 하나라도 잘못되면(형식 오류, 없는 카테고리를 가리키는 내역, 종류별 카테고리 0개)
+  /// 전체를 되돌리고 [FormatException]을 던진다. 지금 데이터는 그대로 남는다.
+  Future<void> replaceAllTables(
+    Map<String, List<Map<String, Object?>>> tables,
+  ) => transaction(() async {
+    // 외래 키 검사는 커밋할 때 한 번에 한다(행을 넣는 순서와 무관하게).
+    await customStatement('PRAGMA defer_foreign_keys = ON');
+    for (final table in allTables.toList().reversed) {
+      await delete(table).go();
+    }
+    for (final table in allTables) {
+      for (final row in tables[table.actualTableName] ?? const []) {
+        final Insertable<Object?> data;
+        try {
+          data = table.map(row) as Insertable<Object?>;
+        } catch (_) {
+          throw const FormatException('행을 읽을 수 없어요');
+        }
+        await into(table).insert(data);
+      }
+    }
+    final broken = await customSelect('PRAGMA foreign_key_check').get();
+    if (broken.isNotEmpty) {
+      throw const FormatException('없는 카테고리를 가리키는 내역이 있어요');
+    }
+    for (final kind in EntryKind.values) {
+      final any = await (select(
+        categories,
+      )..where((c) => c.kind.equalsValue(kind))).get();
+      if (any.isEmpty) throw const FormatException('카테고리가 비어 있어요');
+    }
+  });
+
   Stream<List<Category>> watchCategories(EntryKind kind) =>
       (select(categories)
             ..where((c) => c.kind.equalsValue(kind))

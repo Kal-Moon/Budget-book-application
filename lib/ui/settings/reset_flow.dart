@@ -9,8 +9,77 @@ import '../lock/lock_controller.dart';
 import '../navigation.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
+import 'backup_flow.dart';
 
 enum _ResetKind { records, everything }
+
+enum _FinalChoice { backupThenReset, resetOnly }
+
+/// 최종 확인창: [백업하고 초기화] [백업 없이 초기화] [취소]. 취소하면 null.
+Future<_FinalChoice?> _showFinalConfirm(
+  BuildContext context, {
+  required String title,
+  required Widget description,
+}) {
+  final c = context.colors;
+  return showModalBottomSheet<_FinalChoice>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: c.surface0,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 14),
+            DefaultTextStyle.merge(
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.7,
+                color: c.textSecondary,
+              ),
+              child: description,
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: c.accent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () =>
+                  Navigator.pop(context, _FinalChoice.backupThenReset),
+              child: const Text('백업하고 초기화'),
+            ),
+            const SizedBox(height: 9),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: c.danger,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () => Navigator.pop(context, _FinalChoice.resetOnly),
+              child: const Text('백업 없이 초기화'),
+            ),
+            const SizedBox(height: 9),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: c.textSecondary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
 /// 데이터 초기화: 선택창 → 최종 확인창(실수 방지 설정과 무관하게 항상) → 실행 → 온보딩부터.
 Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
@@ -52,7 +121,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
   if (kind == null || !context.mounted) return;
 
   final everything = kind == _ResetKind.everything;
-  final ok = await showConfirmSheet(
+  final choice = await _showFinalConfirm(
     context,
     title: everything ? '앱 전체를 초기화할까요?' : '내역 데이터를 초기화할까요?',
     description: Text.rich(
@@ -63,6 +132,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
                 ? '지출·수입 내역, 카테고리, 예산과 모든 설정이 사라지고 처음 상태로 돌아가요.\n'
                 : '지출·수입 내역, 카테고리, 예산이 모두 사라져요. 설정은 그대로 남아요.\n',
           ),
+          const TextSpan(text: '백업 파일을 먼저 저장해 두면 나중에 되살릴 수 있어요.\n'),
           TextSpan(
             text: '이 작업은 되돌릴 수 없어요.',
             style: TextStyle(color: c.danger, fontWeight: FontWeight.w700),
@@ -70,10 +140,16 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
         ],
       ),
     ),
-    confirmLabel: '초기화하기',
-    destructive: true,
   );
-  if (!ok || !context.mounted) return;
+  if (choice == null || !context.mounted) return;
+  if (choice == _FinalChoice.backupThenReset) {
+    final saved = await saveBackup(context, ref);
+    if (!context.mounted) return;
+    if (!saved) {
+      showToast(context, '백업을 저장하지 않아서 초기화하지 않았어요');
+      return;
+    }
+  }
 
   final messenger = ScaffoldMessenger.of(context);
   final settings = ref.read(settingsProvider.notifier);

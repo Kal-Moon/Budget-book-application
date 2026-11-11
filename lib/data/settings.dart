@@ -156,6 +156,41 @@ class SettingsNotifier extends Notifier<AppSettings> {
     }
   }
 
+  /// 백업용: 저장된 설정 전부(키는 접두어를 뗀 이름). 항목을 나열하지 않아서
+  /// 설정이 추가돼도 자동으로 포함된다.
+  Map<String, Object> exportValues() {
+    final p = ref.read(sharedPreferencesProvider);
+    return {
+      for (final key in p.getKeys())
+        if (key.startsWith(AppSettings._prefix))
+          key.substring(AppSettings._prefix.length): ?p.get(key),
+    };
+  }
+
+  /// 백업에서 복원: 지금 설정을 모두 지우고 [values]로 바꾼다(온보딩은 끝낸 것으로).
+  /// 형식이 맞지 않는 값은 건너뛴다(읽을 때 기본값이 쓰인다).
+  Future<void> replaceWith(Map<String, Object?> values) async {
+    final p = ref.read(sharedPreferencesProvider);
+    for (final key in p.getKeys().toList()) {
+      if (key.startsWith(AppSettings._prefix)) await p.remove(key);
+    }
+    for (final MapEntry(:key, :value) in values.entries) {
+      final k = '${AppSettings._prefix}$key';
+      switch (value) {
+        case bool v:
+          await p.setBool(k, v);
+        case int v:
+          await p.setInt(k, v);
+        case double v:
+          await p.setDouble(k, v);
+        case String v:
+          await p.setString(k, v);
+      }
+    }
+    await p.setBool('${AppSettings._prefix}onboardingDone', true);
+    state = AppSettings.fromPrefs(p);
+  }
+
   /// 앱 전체 초기화: 저장소를 통째로 비운다(항목을 나열하지 않는다).
   Future<void> clearAll() async {
     await ref.read(sharedPreferencesProvider).clear();

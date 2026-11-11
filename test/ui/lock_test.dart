@@ -313,7 +313,7 @@ void main() {
       );
       await tap(tester, find.text('데이터 초기화'));
       await tap(tester, find.text('내역 데이터 초기화'));
-      await tap(tester, find.text('초기화하기'));
+      await tap(tester, find.text('백업 없이 초기화'));
       expect(store.values, isNotEmpty, reason: '설정은 유지');
     });
   });
