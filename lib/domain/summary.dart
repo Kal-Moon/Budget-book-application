@@ -72,26 +72,33 @@ List<Entry> searchEntries(
   ];
 }
 
-/// 내역 자동완성: 같은 카테고리에서 이미 쓴 내역 중 [query]를 포함하는 것(최근 것 먼저, 최대 5개).
-/// 입력한 글자와 똑같은 것은 빼고 보여준다.
-List<String> suggestDescriptions(Iterable<Entry> sameCategory, String query) {
+/// 입력 칸 자동완성: 이미 쓴 문구([field]) 중 [query]를 포함하는 것(최대 [limit]개).
+/// [categoryId]가 있으면 그 카테고리에서 쓴 문구를 먼저, 그 안에서는 최근 것 먼저.
+/// 칸이 비어 있으면 최근 문구를 그대로 보여준다. 입력한 글자와 똑같은 것은 뺀다.
+List<String> suggestTexts(
+  Iterable<Entry> entries,
+  String Function(Entry e) field,
+  String query, {
+  int? categoryId,
+  int limit = 5,
+}) {
   final q = query.trim().toLowerCase();
-  if (q.isEmpty) return const [];
-  final recent = sameCategory.toList()
-    ..sort(
-      (a, b) => b.date.compareTo(a.date) != 0
-          ? b.date.compareTo(a.date)
-          : b.time.compareTo(a.time),
-    );
+  int rank(Entry e) => e.categoryId == categoryId ? 0 : 1;
+  final ordered = entries.toList()
+    ..sort((a, b) {
+      final byCategory = rank(a).compareTo(rank(b));
+      if (byCategory != 0) return byCategory;
+      final byDate = b.date.compareTo(a.date);
+      return byDate != 0 ? byDate : b.time.compareTo(a.time);
+    });
   final seen = <String>{};
   final out = <String>[];
-  for (final e in recent) {
-    final d = e.description.trim();
-    if (d.isEmpty || d.toLowerCase() == q || !d.toLowerCase().contains(q)) {
-      continue;
-    }
-    if (seen.add(d)) out.add(d);
-    if (out.length == 5) break;
+  for (final e in ordered) {
+    final text = field(e).trim();
+    final lower = text.toLowerCase();
+    if (text.isEmpty || lower == q || !lower.contains(q)) continue;
+    if (seen.add(text)) out.add(text);
+    if (out.length == limit) break;
   }
   return out;
 }

@@ -49,6 +49,7 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
   final _amountFocus = FocusNode();
   final _placeFocus = FocusNode();
   final _descriptionFocus = FocusNode();
+  final _memoFocus = FocusNode();
   bool _saving = false;
 
   /// 입력 중 안내는 이 화면 안(저장 버튼 위)에 띄운다. 앱 전체 안내 자리는
@@ -87,7 +88,10 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
       _date = ref.read(todayProvider);
       _time = TimeOfDay.fromDateTime(ref.read(clockProvider).now());
     }
-    _descriptionFocus.addListener(() => setState(() {}));
+    // 칸에 들어가거나 나올 때 자동완성 목록을 보이거나 숨긴다.
+    for (final f in [_placeFocus, _descriptionFocus, _memoFocus]) {
+      f.addListener(() => setState(() {}));
+    }
   }
 
   @override
@@ -95,7 +99,12 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     for (final c in [_amount, _place, _description, _memo]) {
       c.dispose();
     }
-    for (final f in [_amountFocus, _placeFocus, _descriptionFocus]) {
+    for (final f in [
+      _amountFocus,
+      _placeFocus,
+      _descriptionFocus,
+      _memoFocus,
+    ]) {
       f.dispose();
     }
     super.dispose();
@@ -262,13 +271,62 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     );
   }
 
-  List<String> _suggestions() {
-    if (!_descriptionFocus.hasFocus || _categoryId == null) return const [];
+  /// 자동완성: 같은 종류(지출/수입)에서 이미 쓴 문구를 보여준다.
+  /// 고른 카테고리에서 쓴 문구가 먼저 나온다. 칸에 들어가 있을 때만 보인다.
+  List<String> _suggestions(
+    FocusNode focus,
+    TextEditingController controller,
+    String Function(Entry e) field,
+  ) {
+    if (!focus.hasFocus) return const [];
     final all = ref.watch(allEntriesProvider).value ?? const [];
-    return suggestDescriptions(
-      all.where((e) => e.kind == _kind && e.categoryId == _categoryId),
-      _description.text,
+    return suggestTexts(
+      all.where((e) => e.kind == _kind),
+      field,
+      controller.text,
+      categoryId: _categoryId,
     );
+  }
+
+  /// 칸 바로 아래에 붙는 자동완성 목록. 고르면 칸을 채우고 [then]을 부른다.
+  List<Widget> _suggestionList(
+    List<String> items,
+    TextEditingController controller,
+    VoidCallback then,
+  ) {
+    final c = context.colors;
+    return [
+      for (final s in items)
+        Material(
+          color: c.surface0,
+          child: InkWell(
+            onTap: () {
+              controller.value = TextEditingValue(
+                text: s,
+                selection: TextSelection.collapsed(offset: s.length),
+              );
+              then();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.history, size: 15, color: c.textMuted),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      s,
+                      style: const TextStyle(fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 
   @override
@@ -277,7 +335,13 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     final expense = _kind == EntryKind.expense;
     final category = ref.watch(categoryMapProvider).value?[_categoryId];
     final warning = _warning();
-    final suggestions = _suggestions();
+    final placeSuggestions = _suggestions(_placeFocus, _place, (e) => e.place);
+    final descriptionSuggestions = _suggestions(
+      _descriptionFocus,
+      _description,
+      (e) => e.description,
+    );
+    final memoSuggestions = _suggestions(_memoFocus, _memo, (e) => e.memo);
 
     return PopScope(
       canPop: !widget.handleBack,
@@ -481,6 +545,13 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
                   focusNode: _placeFocus,
                   hint: '예: 이마트, 쿠팡 (선택)',
                   onSubmitted: () => _descriptionFocus.requestFocus(),
+                  onChanged: () => setState(() {}),
+                ),
+                // 구매처를 고르면 다음 칸(내역)으로 넘어간다.
+                ..._suggestionList(
+                  placeSuggestions,
+                  _place,
+                  _descriptionFocus.requestFocus,
                 ),
               ],
               const SizedBox(height: 16),
@@ -491,29 +562,11 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
                 hint: expense ? '예: 라면 (선택)' : '예: 11월 급여 (선택)',
                 onChanged: () => setState(() {}),
               ),
-              for (final s in suggestions)
-                Material(
-                  color: c.surface0,
-                  child: InkWell(
-                    onTap: () {
-                      _description.text = s;
-                      _descriptionFocus.unfocus();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 13,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.history, size: 15, color: c.textMuted),
-                          const SizedBox(width: 8),
-                          Text(s, style: const TextStyle(fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+              ..._suggestionList(
+                descriptionSuggestions,
+                _description,
+                _descriptionFocus.unfocus,
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
@@ -525,9 +578,12 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
               const _Label('메모'),
               _TextBox(
                 controller: _memo,
+                focusNode: _memoFocus,
                 hint: '추가로 남기고 싶은 메모 (선택)',
                 maxLines: 2,
+                onChanged: () => setState(() {}),
               ),
+              ..._suggestionList(memoSuggestions, _memo, _memoFocus.unfocus),
               if (_editing) ...[
                 const SizedBox(height: 20),
                 OutlinedButton(

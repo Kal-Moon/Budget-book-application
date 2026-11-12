@@ -131,7 +131,7 @@ void main() {
     expect(find.textContaining('초과해요'), findsNothing);
   });
 
-  testWidgets('자동완성: 같은 카테고리에서 썼던 내역을 추천한다', (tester) async {
+  testWidgets('자동완성: 고른 카테고리 문구가 먼저, 다른 카테고리 문구도 나온다', (tester) async {
     await pumpApp(
       tester,
       setup: (db) async {
@@ -144,10 +144,18 @@ void main() {
         );
         await addEntry(
           db,
-          date: '2026-11-03',
+          date: '2026-11-05',
           categoryId: 2,
           amount: 1000,
           description: '라이딩',
+        );
+        await addEntry(
+          db,
+          kind: EntryKind.income,
+          date: '2026-11-05',
+          categoryId: 5,
+          amount: 1000,
+          description: '라디오 출연료',
         );
       },
     );
@@ -156,11 +164,44 @@ void main() {
     await tap(tester, find.text('식비'));
     await tester.tap(field('예: 라면 (선택)'));
     await type(tester, field('예: 라면 (선택)'), '라');
-    expect(find.text('라면'), findsWidgets);
-    expect(find.text('라이딩'), findsNothing, reason: '다른 카테고리');
-    await tap(tester, find.byIcon(Icons.history));
+    final shown = find.descendant(
+      of: find.ancestor(
+        of: find.byIcon(Icons.history),
+        matching: find.byType(InkWell),
+      ),
+      matching: find.byType(Text),
+    );
+    expect(tester.widgetList<Text>(shown).map((t) => t.data), ['라면', '라이딩']);
+    expect(find.text('라디오 출연료'), findsNothing, reason: '수입 내역');
+    await tap(tester, find.text('라면').last);
     final f = tester.widget<TextField>(field('라면'));
     expect(f.controller!.text, '라면');
+  });
+
+  testWidgets('자동완성: 카테고리를 고르기 전에도, 칸을 누르기만 해도 구매처·메모를 추천한다', (tester) async {
+    await pumpApp(
+      tester,
+      setup: (db) => addEntry(
+        db,
+        date: '2026-11-03',
+        categoryId: 3,
+        amount: 4500,
+        place: '스타벅스',
+        memo: '친구랑',
+      ),
+    );
+    await openInputTab(tester);
+    expect(find.text('스타벅스'), findsNothing, reason: '칸에 들어가기 전');
+
+    await tap(tester, field('예: 이마트, 쿠팡 (선택)'));
+    expect(find.text('스타벅스'), findsOneWidget);
+    await tap(tester, find.text('스타벅스'));
+    expect(tester.widget<TextField>(field('스타벅스')).controller!.text, '스타벅스');
+    expect(find.byIcon(Icons.history), findsNothing, reason: '내역 칸으로 넘어감');
+
+    await tap(tester, field('추가로 남기고 싶은 메모 (선택)'));
+    await tap(tester, find.text('친구랑'));
+    expect(tester.widget<TextField>(field('친구랑')).controller!.text, '친구랑');
   });
 
   testWidgets('카테고리 빠른 추가: 같은 이름은 막고, 새 이름은 추가하고 바로 고른다', (tester) async {
