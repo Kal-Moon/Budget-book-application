@@ -47,6 +47,11 @@ android {
         }
         release {
             signingConfig = signingConfigs.getByName("dev")
+            // R8(코드 줄이기) 규칙. 영수증 인식 플러그인이 참조하는, 넣지 않은 언어 모델용.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
