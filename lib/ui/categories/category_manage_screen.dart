@@ -21,7 +21,7 @@ Future<void> openCategoryManage(
   ),
 );
 
-/// 카테고리 관리: [지출][수입] 탭, 추가·이름·아이콘·색상·예산(지출만)·삭제.
+/// 카테고리 관리: [지출][수입] 탭, 추가·이름·아이콘·색상·예산(지출만)·합치기·삭제.
 class CategoryManageScreen extends ConsumerStatefulWidget {
   const CategoryManageScreen({super.key, this.initialKind = EntryKind.expense});
 
@@ -54,8 +54,84 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
         context,
         category: cat,
         siblings: cats,
+        onMerge: () => _merge(cat, cats),
         onDelete: () => _delete(cat, cats),
       );
+
+  /// 합치기: [cat]의 내역과 모든 달의 예산을 고른 카테고리에 더하고 [cat]을 없앤다.
+  /// 되돌릴 수 없으므로 실수 방지 설정과 상관없이 항상 한 번 더 확인한다.
+  /// (DB에서는 "옮기고 삭제"와 같은 동작이다.)
+  Future<void> _merge(Category cat, List<Category> cats) async {
+    if (cats.length <= 1) return;
+    final target = await _showMergeSheet(cat, cats);
+    if (target == null || !mounted) return;
+    final db = ref.read(databaseProvider);
+    final count = await db.countEntriesIn(cat.id);
+    if (!mounted) return;
+    final ok = await showConfirmSheet(
+      context,
+      title: "'${cat.name}'을(를) '${target.name}'에 합칠까요?",
+      description: Text(
+        "${count > 0 ? "'${cat.name}'의 내역 $count건과 " : "'${cat.name}'의 "}"
+        "모든 달의 예산을 '${target.name}'에 더하고, '${cat.name}'은(는) 목록에서 없어져요.\n"
+        "이름·아이콘·색상은 '${target.name}' 것이 남아요. 합친 뒤에는 되돌릴 수 없어요.",
+      ),
+      confirmLabel: '합치기',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    await db.deleteCategory(cat.id, moveTo: target.id);
+    if (mounted) showToast(context, "'${target.name}'에 합쳤어요");
+  }
+
+  /// 합칠 곳 고르기(같은 종류의 다른 카테고리). 닫으면 null.
+  Future<Category?> _showMergeSheet(Category cat, List<Category> cats) {
+    final c = context.colors;
+    return showModalBottomSheet<Category>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: c.surface0,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            children: [
+              Text(
+                "'${cat.name}' 합치기",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '겹치는 카테고리를 하나로 합쳐요. 합칠 카테고리를 골라주세요. '
+                '내역과 예산이 모두 그 카테고리로 들어가요.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.6,
+                  color: c.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              for (final other in cats.where((o) => o.id != cat.id))
+                _SheetRow(
+                  icon: other.icon,
+                  iconBackground: Color(other.color).withValues(alpha: 0.13),
+                  label: "'${other.name}'에 합치기",
+                  onTap: () => Navigator.pop(context, other),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   /// 삭제 흐름. 내역이 있으면 옮길지 함께 지울지 고르고, 어느 쪽이든 한 번 더 확인한다.
   Future<void> _delete(Category cat, List<Category> cats) async {
@@ -277,7 +353,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '카테고리를 누르면 이름·아이콘·색상을 바꾸거나 삭제할 수 있어요.\n'
+                  '카테고리를 누르면 이름·아이콘·색상을 바꾸거나, 다른 카테고리와 합치거나, 삭제할 수 있어요.\n'
                   '색상은 아이콘 배경, 목록 앞 작은 점, 차트에 적용돼요. (글자 색은 바뀌지 않아요)'
                   '${_kind == EntryKind.expense && !showBudget ? '\n카테고리별 예산은 예산 방식이 "항목별로 정하기"일 때 정할 수 있어요.' : ''}',
                   style: TextStyle(

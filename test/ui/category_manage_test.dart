@@ -114,6 +114,76 @@ void main() {
     expect(rows!.single.categoryId, 1);
   });
 
+  testWidgets('합치기: 내역과 모든 달의 예산이 합칠 카테고리로 들어가고, 원래 카테고리는 없어진다', (
+    tester,
+  ) async {
+    final db = await pumpApp(
+      tester,
+      // 10월 예산만 있어도 새 달 팝업이 뜨지 않게(이미 물어본 달).
+      settings: {'budgetPromptMonth': '2026-11'},
+      setup: (db) async {
+        await addEntry(db, date: '2026-11-07', categoryId: 3, amount: 4500);
+        await addEntry(db, date: '2026-10-02', categoryId: 3, amount: 5000);
+        await db.saveMonthBudget(
+          const MonthBudget(
+            monthKey: '2026-10',
+            mode: BudgetMode.category,
+            categoryAmounts: {1: 200000, 3: 60000},
+          ),
+        );
+      },
+    );
+    await openManage(tester);
+    await tap(tester, find.text('카페'));
+    await tap(tester, find.text('다른 카테고리와 합치기'));
+
+    expect(find.text("'카페' 합치기"), findsOneWidget);
+    expect(find.text("'카페'에 합치기"), findsNothing, reason: '자기 자신은 없음');
+    expect(find.text("'월급'에 합치기"), findsNothing, reason: '수입 카테고리는 없음');
+    await tap(tester, find.text("'식비'에 합치기"));
+
+    expect(find.text("'카페'을(를) '식비'에 합칠까요?"), findsOneWidget);
+    expect(find.textContaining('내역 2건과'), findsOneWidget);
+    await tap(tester, find.text('합치기'));
+
+    expect(find.text("'식비'에 합쳤어요"), findsOneWidget);
+    expect(find.text('카페'), findsNothing);
+    final rows = await tester.runAsync(() => db.select(db.entries).get());
+    expect(rows!.map((e) => e.categoryId), everyElement(1));
+    final oct = await tester.runAsync(() => db.getMonthBudget('2026-10'));
+    expect(oct!.categoryBudget(1), 260000, reason: '과거 달 예산도 더해진다');
+    expect(oct.totalBudget, 260000);
+  });
+
+  testWidgets('합치기: 확인창에서 취소하면 그대로, 마지막 1개는 합칠 수 없다', (tester) async {
+    final db = await pumpApp(
+      tester,
+      setup: (db) =>
+          addEntry(db, date: '2026-11-07', categoryId: 3, amount: 4500),
+    );
+    await openManage(tester);
+    await tap(tester, find.text('카페'));
+    await tap(tester, find.text('다른 카테고리와 합치기'));
+    await tap(tester, find.text("'식비'에 합치기"));
+    await tap(tester, find.text('취소'));
+    expect(find.text('카페'), findsOneWidget);
+    final rows = await tester.runAsync(() => db.select(db.entries).get());
+    expect(rows!.single.categoryId, 3);
+
+    // 수입 탭에서 하나만 남기면 합치기 버튼이 꺼진다.
+    await tap(tester, find.text('수입'));
+    for (final name in ['용돈', '부수입', '금융수입']) {
+      await tap(tester, find.text(name));
+      await tap(tester, find.text('이 카테고리 삭제하기'));
+      await tap(tester, find.text('삭제하기'));
+    }
+    await tap(tester, find.text('월급'));
+    final merge = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '다른 카테고리와 합치기'),
+    );
+    expect(merge.onPressed, isNull);
+  });
+
   testWidgets('내역이 없는 카테고리는 확인 한 번으로 삭제, 마지막 1개는 삭제할 수 없다', (tester) async {
     await pumpApp(tester);
     await openManage(tester);

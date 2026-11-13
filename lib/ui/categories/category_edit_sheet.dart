@@ -10,12 +10,13 @@ import '../../domain/categories.dart';
 import '../theme.dart';
 import '../widgets/amount_field.dart';
 
-/// 카테고리 하나를 고치는 시트: 이름·아이콘·색상·이번 달 예산(항목별 방식의 지출만)·삭제.
+/// 카테고리 하나를 고치는 시트: 이름·아이콘·색상·이번 달 예산(항목별 방식의 지출만)·합치기·삭제.
 /// [siblings]는 같은 종류의 카테고리 전체(이름 중복 검사, 마지막 1개 삭제 막기).
 Future<void> showCategoryEditSheet(
   BuildContext context, {
   required Category category,
   required List<Category> siblings,
+  required VoidCallback onMerge,
   required VoidCallback onDelete,
 }) => showModalBottomSheet<void>(
   context: context,
@@ -25,6 +26,7 @@ Future<void> showCategoryEditSheet(
   builder: (_) => _CategoryEditSheet(
     category: category,
     siblings: siblings,
+    onMerge: onMerge,
     onDelete: onDelete,
   ),
 );
@@ -33,11 +35,13 @@ class _CategoryEditSheet extends ConsumerStatefulWidget {
   const _CategoryEditSheet({
     required this.category,
     required this.siblings,
+    required this.onMerge,
     required this.onDelete,
   });
 
   final Category category;
   final List<Category> siblings;
+  final VoidCallback onMerge;
   final VoidCallback onDelete;
 
   @override
@@ -253,6 +257,22 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
                 child: const Text('저장'),
+              ),
+              const SizedBox(height: 9),
+              // 겹치는 카테고리(가져오기 등)를 하나로. 합칠 곳이 있어야 한다.
+              OutlinedButton(
+                onPressed: canDelete
+                    ? () {
+                        Navigator.pop(context);
+                        widget.onMerge();
+                      }
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: c.textSecondary,
+                  side: BorderSide(color: c.borderStrong, width: 0.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('다른 카테고리와 합치기'),
               ),
               const SizedBox(height: 9),
               OutlinedButton(
