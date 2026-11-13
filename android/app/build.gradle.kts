@@ -27,6 +27,13 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 테스트 APK만 arm64 한 벌로(CI의 APK 빌드 단계가 GAGYEBU_ARM64_ONLY=true를 준다).
+        // --target-platform은 Flutter 엔진만 줄이고 플러그인(영수증 인식·SQLite)의 다른 폰 종류용
+        // 파일은 남겨서 이것으로 함께 거른다. 출시용 AAB는 모든 폰 종류를 넣어야 하므로 걸지 않는다.
+        if (System.getenv("GAGYEBU_ARM64_ONLY") == "true") {
+            ndk { abiFilters += listOf("arm64-v8a") }
+        }
     }
 
     // 테스트 빌드 전용 서명 키(레포에 포함). 어느 PC·CI에서 빌드해도 같은 키로 서명되어

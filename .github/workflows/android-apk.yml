@@ -55,6 +55,8 @@ jobs:
       # 테스트 APK는 arm64(2017년 이후 거의 모든 폰) 한 벌만 넣는다. 세 벌을 다 넣으면 100MB가 된다.
       # Gradle 배포 파일·SQLite 바이너리를 GitHub에서 받다가 일시적으로 실패하는 경우가 있어 5번까지 다시 시도한다.
       - name: APK 빌드
+        env:
+          GAGYEBU_ARM64_ONLY: 'true'
         run: |
           for i in 1 2 3 4 5; do
             flutter build apk --release --build-number=${{ github.run_number }} \
@@ -89,7 +91,7 @@ jobs:
           java -jar bundletool.jar get-size total --apks=app.apks --dimensions=ABI > size.csv
           cat size.csv
           # 바이트를 MB로 바꿔 Releases 설명에 넣는다.
-          awk -F, 'NR==1{print;next}{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/ && $i>100000) $i=sprintf("%.1fMB",$i/1000000); print}' OFS=, size.csv > size-mb.csv
+          awk -F, '{sub(/\r$/,"")} NR==1{print;next}{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/ && $i>100000) $i=sprintf("%.1fMB",$i/1000000); print}' OFS=, size.csv > size-mb.csv
 
       - name: Releases의 dev-latest에 올리기
         env:
