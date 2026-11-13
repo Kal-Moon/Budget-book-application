@@ -51,7 +51,7 @@
 - `.github/workflows/android-apk.yml`: `main`과 `claude/**` 브랜치에 푸시하면 분석 → 테스트 → APK 빌드 → **Releases의 `dev-latest`(최신 테스트 빌드)**에 `gagyebu-dev.apk`를 올린다. 빌드 번호는 실행 번호(`1.0.0+N`)이고, 앱 설정 화면 아래쪽에 표시된다.
 - 사용자는 폰에서 Releases 페이지의 APK를 받아 설치해서 확인한다.
 - **출시 기준으로 빌드한다**: APK·AAB 모두 `--obfuscate --split-debug-info=build/symbols`(출시와 같은 옵션이라 테스트에서 문제를 미리 본다). 난독화 때문에 **타입·함수 이름 문자열에 기대는 코드(`runtimeType.toString()` 등)를 쓰지 않는다.**
-- 테스트 APK는 **arm64 한 벌**(`--target-platform android-arm64` + 환경변수 `GAGYEBU_ARM64_ONLY=true` → `build.gradle.kts`의 `abiFilters`. `--target-platform`만으로는 플러그인의 다른 폰 종류용 파일이 남아 54.6MB였다). 세 벌(x86_64·arm64·armeabi-v7a)을 다 넣으면 100MB였다(한 벌당 Flutter 엔진 12MB + 영수증 인식 엔진 11MB + 앱 코드 9MB, 압축 없이 저장됨). 32비트 구형 폰에는 테스트 APK가 설치되지 않는다.
+- 테스트 APK는 **arm64 한 벌**(`--target-platform android-arm64` + 환경변수 `GAGYEBU_ARM64_ONLY=true` → `build.gradle.kts`의 `packaging.jniLibs.excludes`로 다른 폰 종류 폴더 제외. `--target-platform`만으로는 플러그인의 다른 폰 종류용 파일이 남아 54.6MB였고, `abiFilters`는 Flutter 빌드 도구가 기본값과 합쳐 효과가 없었다). 세 벌(x86_64·arm64·armeabi-v7a)을 다 넣으면 100MB였다(한 벌당 Flutter 엔진 12MB + 영수증 인식 엔진 11MB + 앱 코드 9MB, 압축 없이 저장됨). 32비트 구형 폰에는 테스트 APK가 설치되지 않는다.
 - 출시용 AAB(모든 폰 종류)도 매번 빌드하고, bundletool로 계산한 **Play 스토어 예상 다운로드 크기**를 Releases 설명에 적는다. AAB와 디버그 정보(`build/symbols`, 스토어 오류 보고 해독용)는 Actions 아티팩트 `gagyebu-release-aab`(30일). 이 AAB는 테스트 키로 서명돼 스토어에 그대로 올릴 수 없다(TODO 8에서 업로드 키로). 빌드 22 기준 스토어 예상 다운로드: arm64 16.7MB, armeabi-v7a 15.4MB, x86_64 17.0MB.
 - CI의 테스트 단계는 GitHub에서 SQLite 바이너리를 받지 않고 러너의 시스템 SQLite를 쓴다(pubspec에 임시로 `hooks: user_defines`를 붙였다 되돌림). APK 빌드는 Gradle·Kotlin·SQLite 파일을 GitHub에서 받으므로 GitHub 다운로드 장애(504) 때는 실패한다 → 장애가 풀린 뒤 Actions에서 다시 실행(workflow_dispatch).
 
