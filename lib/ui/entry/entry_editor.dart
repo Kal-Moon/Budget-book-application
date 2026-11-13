@@ -13,6 +13,7 @@ import '../../domain/summary.dart';
 import '../theme.dart';
 import '../widgets/amount_field.dart';
 import '../widgets/confirm_sheet.dart';
+import '../receipt/receipt_flow.dart';
 import 'category_picker_sheet.dart';
 
 /// 내역 입력·수정 화면.
@@ -133,6 +134,13 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     setState(() => _categoryId = id);
     // 카테고리를 고르면 금액 칸으로 자동 이동.
     if (_amount.text.isEmpty) _amountFocus.requestFocus();
+  }
+
+  /// 영수증으로 입력. 저장했으면 입력을 마친다(홈으로).
+  Future<void> _fromReceipt() async {
+    FocusScope.of(context).unfocus();
+    final saved = await startReceiptInput(context, ref);
+    if (saved && mounted) widget.onDone();
   }
 
   Future<void> _pickDate() async {
@@ -358,6 +366,19 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
             children: [
+              if (!_editing) ...[
+                OutlinedButton.icon(
+                  onPressed: _fromReceipt,
+                  icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                  label: const Text('영수증으로 입력'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: c.textSecondary,
+                    side: BorderSide(color: c.borderStrong, width: 0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               const _Label('날짜 & 시간'),
               Row(
                 children: [

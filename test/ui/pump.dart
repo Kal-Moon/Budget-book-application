@@ -6,7 +6,9 @@ import 'package:gagyebu/core/clock.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/data/lock_store.dart';
 import 'package:gagyebu/data/providers.dart';
+import 'package:gagyebu/data/receipt_scanner.dart';
 import 'package:gagyebu/data/settings.dart';
+import 'package:gagyebu/domain/receipt.dart';
 import 'package:gagyebu/main.dart';
 import 'package:gagyebu/ui/import/import_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -35,6 +37,7 @@ Future<AppDatabase> pumpApp(
   Map<String, Object> settings = const {},
   Future<void> Function(AppDatabase db)? setup,
   PickedImportFile? importFile,
+  List<String>? receiptRows,
   MemorySecretStore? secrets,
   FakeBiometricAuth? biometric,
   FakeClock? clock,
@@ -80,6 +83,15 @@ Future<AppDatabase> pumpApp(
         ),
         // 가져오기에서 "파일 선택"을 누르면 이 파일을 고른 것으로 한다.
         importFilePickerProvider.overrideWithValue(() async => importFile),
+        // 영수증 사진을 고르면 이 글자들(한 줄씩 위에서 아래로)을 읽은 것으로 한다.
+        receiptScannerProvider.overrideWithValue(
+          (_) async => receiptRows == null
+              ? null
+              : [
+                  for (final (i, row) in receiptRows.indexed)
+                    OcrLine(row, 10, i * 30.0, 300, i * 30.0 + 20),
+                ],
+        ),
       ],
       child: const GagyebuApp(),
     ),

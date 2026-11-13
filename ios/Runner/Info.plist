@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>영수증을 찍어 내역을 입력할 때 카메라를 사용해요.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>앨범에 있는 영수증 사진으로 내역을 입력할 때 사용해요.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>앱 잠금을 Face ID로 열기 위해 사용해요.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -1511,6 +1511,330 @@ class MonthCategoryBudgetsCompanion
   }
 }
 
+class $ReceiptMemoriesTable extends ReceiptMemories
+    with TableInfo<$ReceiptMemoriesTable, ReceiptMemory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReceiptMemoriesTable(this.attachedDatabase, [this._alias]);
+  @override
+  late final GeneratedColumnWithTypeConverter<ReceiptMemoryKind, int> kind =
+      GeneratedColumn<int>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<ReceiptMemoryKind>($ReceiptMemoriesTable.$converterkind);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES categories (id) ON DELETE SET NULL',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [kind, key, name, categoryId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'receipt_memories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReceiptMemory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {kind, key};
+  @override
+  ReceiptMemory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReceiptMemory(
+      kind: $ReceiptMemoriesTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      ),
+    );
+  }
+
+  @override
+  $ReceiptMemoriesTable createAlias(String alias) {
+    return $ReceiptMemoriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<ReceiptMemoryKind, int, int> $converterkind =
+      const EnumIndexConverter<ReceiptMemoryKind>(ReceiptMemoryKind.values);
+}
+
+class ReceiptMemory extends DataClass implements Insertable<ReceiptMemory> {
+  final ReceiptMemoryKind kind;
+
+  /// 품목은 [itemKeyOf], 구매처는 [placeKeyOf]로 만든 열쇠.
+  final String key;
+
+  /// 품목의 정리한 이름(구매처는 비어 있다).
+  final String name;
+  final int? categoryId;
+  const ReceiptMemory({
+    required this.kind,
+    required this.key,
+    required this.name,
+    this.categoryId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    {
+      map['kind'] = Variable<int>(
+        $ReceiptMemoriesTable.$converterkind.toSql(kind),
+      );
+    }
+    map['key'] = Variable<String>(key);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<int>(categoryId);
+    }
+    return map;
+  }
+
+  ReceiptMemoriesCompanion toCompanion(bool nullToAbsent) {
+    return ReceiptMemoriesCompanion(
+      kind: Value(kind),
+      key: Value(key),
+      name: Value(name),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+    );
+  }
+
+  factory ReceiptMemory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReceiptMemory(
+      kind: $ReceiptMemoriesTable.$converterkind.fromJson(
+        serializer.fromJson<int>(json['kind']),
+      ),
+      key: serializer.fromJson<String>(json['key']),
+      name: serializer.fromJson<String>(json['name']),
+      categoryId: serializer.fromJson<int?>(json['categoryId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'kind': serializer.toJson<int>(
+        $ReceiptMemoriesTable.$converterkind.toJson(kind),
+      ),
+      'key': serializer.toJson<String>(key),
+      'name': serializer.toJson<String>(name),
+      'categoryId': serializer.toJson<int?>(categoryId),
+    };
+  }
+
+  ReceiptMemory copyWith({
+    ReceiptMemoryKind? kind,
+    String? key,
+    String? name,
+    Value<int?> categoryId = const Value.absent(),
+  }) => ReceiptMemory(
+    kind: kind ?? this.kind,
+    key: key ?? this.key,
+    name: name ?? this.name,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+  );
+  ReceiptMemory copyWithCompanion(ReceiptMemoriesCompanion data) {
+    return ReceiptMemory(
+      kind: data.kind.present ? data.kind.value : this.kind,
+      key: data.key.present ? data.key.value : this.key,
+      name: data.name.present ? data.name.value : this.name,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptMemory(')
+          ..write('kind: $kind, ')
+          ..write('key: $key, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(kind, key, name, categoryId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReceiptMemory &&
+          other.kind == this.kind &&
+          other.key == this.key &&
+          other.name == this.name &&
+          other.categoryId == this.categoryId);
+}
+
+class ReceiptMemoriesCompanion extends UpdateCompanion<ReceiptMemory> {
+  final Value<ReceiptMemoryKind> kind;
+  final Value<String> key;
+  final Value<String> name;
+  final Value<int?> categoryId;
+  final Value<int> rowid;
+  const ReceiptMemoriesCompanion({
+    this.kind = const Value.absent(),
+    this.key = const Value.absent(),
+    this.name = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReceiptMemoriesCompanion.insert({
+    required ReceiptMemoryKind kind,
+    required String key,
+    this.name = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : kind = Value(kind),
+       key = Value(key);
+  static Insertable<ReceiptMemory> custom({
+    Expression<int>? kind,
+    Expression<String>? key,
+    Expression<String>? name,
+    Expression<int>? categoryId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (kind != null) 'kind': kind,
+      if (key != null) 'key': key,
+      if (name != null) 'name': name,
+      if (categoryId != null) 'category_id': categoryId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReceiptMemoriesCompanion copyWith({
+    Value<ReceiptMemoryKind>? kind,
+    Value<String>? key,
+    Value<String>? name,
+    Value<int?>? categoryId,
+    Value<int>? rowid,
+  }) {
+    return ReceiptMemoriesCompanion(
+      kind: kind ?? this.kind,
+      key: key ?? this.key,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (kind.present) {
+      map['kind'] = Variable<int>(
+        $ReceiptMemoriesTable.$converterkind.toSql(kind.value),
+      );
+    }
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReceiptMemoriesCompanion(')
+          ..write('kind: $kind, ')
+          ..write('key: $key, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1519,6 +1843,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MonthBudgetsTable monthBudgets = $MonthBudgetsTable(this);
   late final $MonthCategoryBudgetsTable monthCategoryBudgets =
       $MonthCategoryBudgetsTable(this);
+  late final $ReceiptMemoriesTable receiptMemories = $ReceiptMemoriesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1528,7 +1855,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     entries,
     monthBudgets,
     monthCategoryBudgets,
+    receiptMemories,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'categories',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('receipt_memories', kind: UpdateKind.update)],
+    ),
+  ]);
 }
 
 typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
@@ -1590,6 +1928,26 @@ final class $$CategoriesTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _monthCategoryBudgetsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ReceiptMemoriesTable, List<ReceiptMemory>>
+  _receiptMemoriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.receiptMemories,
+    aliasName: 'categories__id__receipt_memories__category_id',
+  );
+
+  $$ReceiptMemoriesTableProcessedTableManager get receiptMemoriesRefs {
+    final manager = $$ReceiptMemoriesTableTableManager(
+      $_db,
+      $_db.receiptMemories,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _receiptMemoriesRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -1678,6 +2036,31 @@ class $$CategoriesTableFilterComposer
           }) => $$MonthCategoryBudgetsTableFilterComposer(
             $db: $db,
             $table: $db.monthCategoryBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> receiptMemoriesRefs(
+    Expression<bool> Function($$ReceiptMemoriesTableFilterComposer f) f,
+  ) {
+    final $$ReceiptMemoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.receiptMemories,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReceiptMemoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.receiptMemories,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1805,6 +2188,31 @@ class $$CategoriesTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> receiptMemoriesRefs<T extends Object>(
+    Expression<T> Function($$ReceiptMemoriesTableAnnotationComposer a) f,
+  ) {
+    final $$ReceiptMemoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.receiptMemories,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReceiptMemoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.receiptMemories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CategoriesTableTableManager
@@ -1823,6 +2231,7 @@ class $$CategoriesTableTableManager
           PrefetchHooks Function({
             bool entriesRefs,
             bool monthCategoryBudgetsRefs,
+            bool receiptMemoriesRefs,
           })
         > {
   $$CategoriesTableTableManager(_$AppDatabase db, $CategoriesTable table)
@@ -1877,12 +2286,17 @@ class $$CategoriesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({entriesRefs = false, monthCategoryBudgetsRefs = false}) {
+              ({
+                entriesRefs = false,
+                monthCategoryBudgetsRefs = false,
+                receiptMemoriesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (entriesRefs) db.entries,
                     if (monthCategoryBudgetsRefs) db.monthCategoryBudgets,
+                    if (receiptMemoriesRefs) db.receiptMemories,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -1927,6 +2341,26 @@ class $$CategoriesTableTableManager
                           referencedColumn: 'category_id',
                           typedResults: items,
                         ),
+                      if (receiptMemoriesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Category,
+                          $CategoriesTable,
+                          ReceiptMemory,
+                          $ReceiptMemoriesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CategoriesTableReferences
+                              ._receiptMemoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).receiptMemoriesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'category_id',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -1947,7 +2381,11 @@ typedef $$CategoriesTableProcessedTableManager =
       $$CategoriesTableUpdateCompanionBuilder,
       (Category, $$CategoriesTableReferences),
       Category,
-      PrefetchHooks Function({bool entriesRefs, bool monthCategoryBudgetsRefs})
+      PrefetchHooks Function({
+        bool entriesRefs,
+        bool monthCategoryBudgetsRefs,
+        bool receiptMemoriesRefs,
+      })
     >;
 typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<int> id,
@@ -2804,6 +3242,310 @@ typedef $$MonthCategoryBudgetsTableProcessedTableManager =
       MonthCategoryBudgetRow,
       PrefetchHooks Function({bool categoryId})
     >;
+typedef $$ReceiptMemoriesTableCreateCompanionBuilder =
+    ReceiptMemoriesCompanion Function({
+      required ReceiptMemoryKind kind,
+      required String key,
+      Value<String> name,
+      Value<int?> categoryId,
+      Value<int> rowid,
+    });
+typedef $$ReceiptMemoriesTableUpdateCompanionBuilder =
+    ReceiptMemoriesCompanion Function({
+      Value<ReceiptMemoryKind> kind,
+      Value<String> key,
+      Value<String> name,
+      Value<int?> categoryId,
+      Value<int> rowid,
+    });
+
+final class $$ReceiptMemoriesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ReceiptMemoriesTable, ReceiptMemory> {
+  $$ReceiptMemoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CategoriesTable _categoryIdTable(_$AppDatabase db) => db.categories
+      .createAlias('receipt_memories__category_id__categories__id');
+
+  $$CategoriesTableProcessedTableManager? get categoryId {
+    final $_column = $_itemColumn<int>('category_id');
+    if ($_column == null) return null;
+    final manager = $$CategoriesTableTableManager(
+      $_db,
+      $_db.categories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ReceiptMemoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ReceiptMemoriesTable> {
+  $$ReceiptMemoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnWithTypeConverterFilters<ReceiptMemoryKind, ReceiptMemoryKind, int>
+  get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CategoriesTableFilterComposer get categoryId {
+    final $$CategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReceiptMemoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReceiptMemoriesTable> {
+  $$ReceiptMemoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CategoriesTableOrderingComposer get categoryId {
+    final $$CategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReceiptMemoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReceiptMemoriesTable> {
+  $$ReceiptMemoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumnWithTypeConverter<ReceiptMemoryKind, int> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  $$CategoriesTableAnnotationComposer get categoryId {
+    final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReceiptMemoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReceiptMemoriesTable,
+          ReceiptMemory,
+          $$ReceiptMemoriesTableFilterComposer,
+          $$ReceiptMemoriesTableOrderingComposer,
+          $$ReceiptMemoriesTableAnnotationComposer,
+          $$ReceiptMemoriesTableCreateCompanionBuilder,
+          $$ReceiptMemoriesTableUpdateCompanionBuilder,
+          (ReceiptMemory, $$ReceiptMemoriesTableReferences),
+          ReceiptMemory,
+          PrefetchHooks Function({bool categoryId})
+        > {
+  $$ReceiptMemoriesTableTableManager(
+    _$AppDatabase db,
+    $ReceiptMemoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReceiptMemoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReceiptMemoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReceiptMemoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<ReceiptMemoryKind> kind = const Value.absent(),
+                Value<String> key = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> categoryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReceiptMemoriesCompanion(
+                kind: kind,
+                key: key,
+                name: name,
+                categoryId: categoryId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required ReceiptMemoryKind kind,
+                required String key,
+                Value<String> name = const Value.absent(),
+                Value<int?> categoryId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReceiptMemoriesCompanion.insert(
+                kind: kind,
+                key: key,
+                name: name,
+                categoryId: categoryId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReceiptMemoriesTable, ReceiptMemory>(table),
+                  $$ReceiptMemoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable: $$ReceiptMemoriesTableReferences
+                            ._categoryIdTable(db),
+                        referencedColumn: $$ReceiptMemoriesTableReferences
+                            ._categoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ReceiptMemoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReceiptMemoriesTable,
+      ReceiptMemory,
+      $$ReceiptMemoriesTableFilterComposer,
+      $$ReceiptMemoriesTableOrderingComposer,
+      $$ReceiptMemoriesTableAnnotationComposer,
+      $$ReceiptMemoriesTableCreateCompanionBuilder,
+      $$ReceiptMemoriesTableUpdateCompanionBuilder,
+      (ReceiptMemory, $$ReceiptMemoriesTableReferences),
+      ReceiptMemory,
+      PrefetchHooks Function({bool categoryId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2816,4 +3558,6 @@ class $AppDatabaseManager {
       $$MonthBudgetsTableTableManager(_db, _db.monthBudgets);
   $$MonthCategoryBudgetsTableTableManager get monthCategoryBudgets =>
       $$MonthCategoryBudgetsTableTableManager(_db, _db.monthCategoryBudgets);
+  $$ReceiptMemoriesTableTableManager get receiptMemories =>
+      $$ReceiptMemoriesTableTableManager(_db, _db.receiptMemories);
 }

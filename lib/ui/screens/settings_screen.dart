@@ -125,6 +125,14 @@ class SettingsScreen extends ConsumerWidget {
                 '쓰던 가계부 앱에서 내보내기 한 엑셀(.xlsx) 또는 CSV 파일을 올리면 읽어와요.',
               ),
               SettingsRow(
+                label: '영수증 기억 지우기',
+                onTap: () => _clearReceiptMemory(context, ref),
+              ),
+              const SettingsNote(
+                '영수증으로 입력할 때 고친 품목 이름과 고른 카테고리를 기억해 두었다가 다음에 미리 채워줘요. '
+                '잘못 기억한 게 많으면 지워주세요. 입력한 내역은 그대로예요.',
+              ),
+              SettingsRow(
                 label: '데이터 초기화',
                 danger: true,
                 onTap: () => startResetFlow(context, ref),
@@ -143,4 +151,20 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _clearReceiptMemory(BuildContext context, WidgetRef ref) async {
+  final ok = await showConfirmSheet(
+    context,
+    title: '영수증 기억을 지울까요?',
+    description: const Text(
+      '기억해 둔 품목 이름과 카테고리를 지워요. 다음 영수증부터는 처음처럼 직접 골라야 해요. '
+      '입력한 내역은 지워지지 않아요.',
+    ),
+    confirmLabel: '지우기',
+    destructive: true,
+  );
+  if (!ok || !context.mounted) return;
+  await ref.read(databaseProvider).clearReceiptMemories();
+  if (context.mounted) showToast(context, '영수증 기억을 지웠어요');
 }

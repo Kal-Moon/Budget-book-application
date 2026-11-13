@@ -64,4 +64,7 @@ flutter {
 dependencies {
     // 지문·얼굴 인식 창이 쓰는 AppCompat 테마(styles.xml의 Theme.AppCompat.*).
     implementation("androidx.appcompat:appcompat:1.7.0")
+    // 영수증 글자 인식(ML Kit)의 한국어 모델. 폰 안에서만 인식하고 인터넷을 쓰지 않는다.
+    // 플러그인은 기본으로 라틴 문자만 넣으므로 한국어 모델을 따로 넣는다.
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 }
