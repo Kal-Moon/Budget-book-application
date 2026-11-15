@@ -158,6 +158,7 @@
 - PIN 평문 저장, 잠금이 콜드 스타트에만 동작 → 보안 저장소 + 1분 재잠금.
 - `late final`로 만든 컨트롤러를 화면에서 한 번도 쓰지 않으면 `dispose`에서 처음 만들어지며 `ref` 오류가 난다 → `initState`에서 만든다.
 - 영수증 인식 플러그인을 넣자 릴리스 APK의 R8 단계가 "Missing class ...chinese/japanese/devanagari..."로 실패했다(넣지 않은 언어 모델을 참조) → `android/app/proguard-rules.pro`에 `-dontwarn`. 이런 오류는 재시도해도 같으므로 CI 재시도를 기다리지 말고 로그부터 본다.
+- 출시 옵션(R8)으로 빌드하자 폰에서 영수증 인식이 `NullPointerException ... getClass() on null`(`lw1.<init>` 같은 바뀐 이름)로 항상 실패했다. R8 full mode가 ML Kit 내부 코드를 지우거나 이름을 바꿔서였다 → `proguard-rules.pro`에 ML Kit `-keep`, `gradle.properties`에 `android.enableR8.fullMode=false`, CI의 "영수증 인식 코드 보존 확인" 단계가 APK 안에 ML Kit 클래스 이름이 있는지 검사한다. 오류가 앱 안에서만 나는 경우를 대비해 인식 실패 시 오류 내용을 화면에 보여주고 복사하게 했다. 바뀐 이름을 원래대로 읽으려면 Actions 아티팩트의 `apk-mapping.txt`(R8 매핑)를 쓴다.
 - PIN 입력판은 단계가 바뀔 때 오류 문구를 지우지 않는다(지우면 "번호가 서로 달라요"가 보이기 전에 사라진다).
 
 ### 웹 버전에서만 있던 것 (이력)
