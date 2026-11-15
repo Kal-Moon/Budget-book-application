@@ -38,6 +38,7 @@ Future<AppDatabase> pumpApp(
   Future<void> Function(AppDatabase db)? setup,
   PickedImportFile? importFile,
   List<String>? receiptRows,
+  Object? receiptError,
   MemorySecretStore? secrets,
   FakeBiometricAuth? biometric,
   FakeClock? clock,
@@ -85,7 +86,9 @@ Future<AppDatabase> pumpApp(
         importFilePickerProvider.overrideWithValue(() async => importFile),
         // 영수증 사진을 고르면 이 글자들(한 줄씩 위에서 아래로)을 읽은 것으로 한다.
         receiptScannerProvider.overrideWithValue(
-          (_) async => receiptRows == null
+          (_) async => receiptError != null
+              ? throw receiptError
+              : receiptRows == null
               ? null
               : [
                   for (final (i, row) in receiptRows.indexed)

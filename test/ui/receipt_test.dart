@@ -185,6 +185,27 @@ void main() {
     expect(saved.description, '');
   });
 
+  testWidgets('인식 중 오류가 나면 오류 내용을 보여주고 복사할 수 있다', (tester) async {
+    await pumpApp(
+      tester,
+      receiptError: Exception('TextRecognizerError: 모델을 불러오지 못함'),
+    );
+    await tap(
+      tester,
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('입력'),
+      ),
+    );
+    await tap(tester, find.text('영수증으로 입력'));
+    await tap(tester, find.text('사진 찍기'));
+    expect(find.text('영수증을 읽지 못했어요'), findsOneWidget);
+    expect(find.textContaining('모델을 불러오지 못함'), findsOneWidget);
+    expect(find.text('영수증 확인'), findsNothing);
+    await tap(tester, find.text('내용 복사하고 닫기'));
+    expect(find.text('영수증을 읽지 못했어요'), findsNothing);
+  });
+
   testWidgets('글자를 못 찾거나 사진을 안 고르면 확인 화면으로 가지 않는다', (tester) async {
     await pumpApp(tester, receiptRows: const []);
     await tap(
@@ -198,6 +219,7 @@ void main() {
     await tap(tester, find.text('앨범에서 고르기'));
     expect(find.text('영수증 확인'), findsNothing);
     expect(find.textContaining('글자를 찾지 못했어요'), findsOneWidget);
+    expect(find.textContaining('인식된 조각 0개'), findsOneWidget);
   });
 
   testWidgets('취소하면 아무것도 저장하지 않는다', (tester) async {

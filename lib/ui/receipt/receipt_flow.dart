@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/today.dart';
@@ -8,7 +9,6 @@ import '../../data/receipt_scanner.dart';
 import '../../domain/budget.dart';
 import '../../domain/receipt.dart';
 import '../theme.dart';
-import '../widgets/confirm_sheet.dart';
 import 'receipt_confirm_screen.dart';
 
 /// 영수증으로 입력: 사진 고르기 → 글자 읽기 → 기억해 둔 이름·카테고리 채우기 → 확인 화면.
@@ -22,16 +22,33 @@ Future<bool> startReceiptInput(BuildContext context, WidgetRef ref) async {
   _showReading(context);
   try {
     lines = await ref.read(receiptScannerProvider)(source);
-  } catch (_) {
+  } catch (e) {
     navigator.pop();
-    if (context.mounted) showToast(context, '영수증을 읽지 못했어요. 다시 시도해주세요');
+    // 원인을 알 수 있게 오류 내용을 그대로 보여주고 복사할 수 있게 한다.
+    if (context.mounted) {
+      await _showProblem(
+        context,
+        title: '영수증을 읽지 못했어요',
+        message: '글자 인식 중에 오류가 났어요. 아래 오류 내용을 복사해서 알려주시면 원인을 찾을게요.',
+        detail: '$e',
+      );
+    }
     return false;
   }
   navigator.pop();
   if (lines == null || !context.mounted) return false;
   final rows = rowsFromLines(lines);
   if (rows.isEmpty) {
-    showToast(context, '글자를 찾지 못했어요. 밝은 곳에서 영수증이 꽉 차게 찍어주세요');
+    await _showProblem(
+      context,
+      title: '글자를 찾지 못했어요',
+      message:
+          '밝은 곳에서 영수증이 화면에 꽉 차게, 흔들리지 않게 찍어주세요. '
+          '계속 안 되면 아래 내용을 복사해서 알려주세요.',
+      detail:
+          '인식된 조각 ${lines.length}개, 글자가 있는 줄 0개 · '
+          '사진: ${source == ReceiptSource.camera ? '카메라' : '앨범'}',
+    );
     return false;
   }
 
@@ -190,5 +207,51 @@ void _showReading(BuildContext context) => showDialog<void>(
         ],
       ),
     ),
+  ),
+);
+
+/// 문제가 생겼을 때 이유와 복사할 수 있는 진단 내용을 보여준다.
+Future<void> _showProblem(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String detail,
+}) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: Text(title),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(message, style: const TextStyle(fontSize: 13.5, height: 1.5)),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: context.colors.surface2,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: SelectableText(
+            detail,
+            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: detail));
+          if (context.mounted) Navigator.pop(context);
+        },
+        child: const Text('내용 복사하고 닫기'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('닫기'),
+      ),
+    ],
   ),
 );
