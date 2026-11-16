@@ -128,9 +128,11 @@ class ReceiptScan {
     this.total,
     this.date,
     this.time,
-    this.place,
     this.items = const [],
+    this.checked = const [],
     this.unpricedNames = const [],
+    this.placeCandidates = const [],
+    this.bizNo,
     this.fragments = const [],
   });
 
@@ -149,8 +151,22 @@ class ReceiptScan {
 
   /// 'HH:mm'
   final String? time;
-  final String? place;
+
+  /// 품목 후보(가격이 붙은 줄). 세금 줄·합계 줄은 숫자 관계로 뺐다.
   final List<ReceiptItem> items;
+
+  /// [items]마다 처음에 체크할지. 후보 합계가 결제 금액과 맞을 때만 체크해 둔다
+  /// (틀린 품목을 자동으로 넣느니 비워 두고 사용자가 고르게 한다).
+  final List<bool> checked;
+
+  /// 구매처 후보(위쪽 줄들). 자동으로 채우지 않고 버튼으로 보여준다.
+  final List<String> placeCandidates;
+
+  /// 사업자등록번호(숫자 10자리). 가게를 알아보는 열쇠로 쓴다(숫자는 인식이 안정적이다).
+  final String? bizNo;
+
+  /// 후보 합계가 결제 금액과 맞았는지(할인 줄 포함).
+  bool get matched => checked.isNotEmpty && checked.every((c) => c);
 }
 
 // ── 값 찾기 ─────────────────────────────────────────────────────────────
@@ -178,43 +194,6 @@ const _notTotalKeywords = [
   '봉사료',
   '쿠폰',
 ];
-
-/// 품목 목록이 시작되는 머리줄.
-const _headerKeywords = ['상품명', '품명', '품목', '메뉴', '상품코드'];
-
-/// 품목 앞쪽(가게 정보)에 나오는 줄.
-const _shopInfoKeywords = [
-  '사업자',
-  '대표',
-  '전화',
-  'tel',
-  '주소',
-  '일시',
-  '일자',
-  'pos',
-  '영수증',
-  '계산원',
-  '판매원',
-  '캐셔',
-];
-
-/// 품목이 끝나는 줄.
-const _itemsEndKeywords = [
-  '합계',
-  '결제',
-  '과세',
-  '면세',
-  '부가세',
-  '공급가',
-  '받을',
-  '소계',
-  '총구매',
-  '총액',
-  '총금액',
-];
-
-/// 품목이 아닌 줄.
-const _notItemKeywords = ['할인', '쿠폰', '포인트', '적립', '에누리', '단가', '수량', '금액'];
 
 /// 구매처가 아닌 줄(맨 위쪽에서 상호를 찾을 때 건너뛴다).
 const _notPlaceKeywords = [
@@ -277,34 +256,96 @@ List<int> _moneyIn(String row) => [
     int.parse(m[0]!.replaceAll(RegExp(r'[,.]'), '')),
 ];
 
-/// 영수증 글자(줄 단위)에서 결제 금액·날짜·시간·구매처·품목을 찾는다.
+/// 영수증 글자(줄 단위)에서 결제 금액·날짜·시간·구매처 후보·품목 후보를 찾는다.
 /// [today]보다 뒤이거나 1년 넘게 지난 날짜는 잘못 읽은 것으로 보고 버린다.
 ///
-/// 결제 금액: 결제 금액을 뜻하는 말 → 영수증에 여러 번 나오는 금액(합계·결제금액·카드 승인
-/// 금액이 같은 숫자로 반복된다) → 품목 합계 → 가장 큰 금액 순.
-/// 가격 없이 이름만 있는 품목이 하나뿐이면 결제 금액을 그 품목 금액으로 쓴다.
+/// 한글 낱말("합계", "부가세")은 사진마다 다르게 잘못 읽히므로(빌드 26~28: "급가액",
+/// "가 세", "겨", "철제금의") **숫자끼리의 관계**로 판단한다. 숫자는 인식이 안정적이다.
+/// - 결제 금액: 여러 줄에 반복되는 금액(합계·결제금액·카드 승인금액). 낱말로 찾은 금액은
+///   반복되는 금액과 맞을 때, 또는 반복되는 금액이 없을 때 쓴다.
+/// - 세금 줄: 결제 금액의 10/11(공급가액)·1/11(부가세)인 금액은 품목이 아니다.
+/// - 품목 후보: 가게 정보(날짜·전화·사업자번호) 줄 다음부터 결제 금액이 처음 나오는 줄 전까지,
+///   가격이 붙은 줄. 후보 합계(할인 포함)가 결제 금액과 맞을 때만 미리 체크한다.
 ReceiptScan parseReceipt(
   List<String> rows, {
   required DateTime today,
   List<String> fragments = const [],
 }) {
   final (date, time) = _findDateTime(rows, dateOnly(today));
-  var (items, unpriced) = _findItems(rows);
-  final total =
-      _findTotal(rows) ??
-      _repeatedAmount(rows) ??
-      (items.isNotEmpty ? items.fold<int>(0, (s, i) => s + i.amount) : null) ??
-      _largestAmount(rows);
-  if (items.isEmpty && unpriced.length == 1 && total != null) {
-    final name = unpriced.single;
-    items = [
-      ReceiptItem(
-        key: itemKeyOf(name),
-        name: cleanItemName(name),
-        amount: total,
-      ),
+  final lines = _itemLines(rows);
+  final total = _decideTotal(rows, lines);
+
+  var items = <ReceiptItem>[];
+  var checked = <bool>[];
+  var unpriced = <String>[];
+  if (total != null) {
+    final firstTotalRow = rows.indexWhere((r) => _moneyIn(r).contains(total));
+    final start = _itemsStart(
+      rows,
+      firstTotalRow < 0 ? rows.length : firstTotalRow,
+    );
+    bool inRange(_ItemLine l) =>
+        l.row > start && (firstTotalRow < 0 || l.row < firstTotalRow);
+    final supply = (total * 10 / 11).round();
+    final vat = (total / 11).round();
+    final discounts = [
+      for (final l in lines)
+        if (l.amount < 0 && inRange(l)) l,
     ];
-    unpriced = const [];
+    // 할인이 있으면 품목 가격이 결제 금액보다 클 수 있다(결제 금액 + 할인 합계까지).
+    final limit = total - discounts.fold<int>(0, (s, l) => s + l.amount);
+    final priced = <_ItemLine>[];
+    var running = 0;
+    for (final l in lines) {
+      if (l.amount < 100 || l.amount == total || l.amount > limit) continue;
+      // 결제 금액의 10/11·1/11은 공급가액·부가세 줄이다(낱말이 깨져도 숫자로 안다).
+      if ((l.amount - supply).abs() <= 1 || (l.amount - vat).abs() <= 1) {
+        continue;
+      }
+      // 앞 품목들의 합과 같으면 소계 줄(판매합계 등)이다.
+      if (priced.length >= 2 && l.amount == running) continue;
+      priced.add(l);
+      running += l.amount;
+    }
+    final inside = priced.where(inRange).toList();
+    int sum(Iterable<_ItemLine> ls) => ls.fold(0, (s, l) => s + l.amount);
+    bool fits(List<_ItemLine> ls) =>
+        ls.isNotEmpty &&
+        (sum(ls) == total || sum(ls) + sum(discounts) == total);
+    // 범위 안 후보가 맞으면 그것을, 아니면 전체 후보가 맞으면 그것을 체크한다.
+    // 맞지 않으면 범위 안 후보만 체크 없이 보여준다(범위 밖은 카드 정보 등 엉뚱한 줄이 많다).
+    final pick = fits(inside)
+        ? inside
+        : (fits(priced) ? priced : const <_ItemLine>[]);
+    final list = pick.isNotEmpty ? pick : inside;
+    items = [
+      for (final l in list)
+        ReceiptItem(
+          key: itemKeyOf(l.name),
+          name: cleanItemName(l.name),
+          amount: l.amount,
+        ),
+    ];
+    checked = [for (final _ in list) pick.isNotEmpty];
+    if (pick.isEmpty) {
+      unpriced = [
+        for (final l in lines)
+          if (l.amount >= 0 && l.amount < 100 && inRange(l)) l.name,
+      ];
+      // 가격 없는 품목(카페 영수증의 "아메리카노 HOT  1")이 하나뿐이면 결제 금액으로.
+      if (unpriced.length == 1 && items.isEmpty) {
+        final name = unpriced.single;
+        items = [
+          ReceiptItem(
+            key: itemKeyOf(name),
+            name: cleanItemName(name),
+            amount: total,
+          ),
+        ];
+        checked = [true];
+        unpriced = const [];
+      }
+    }
   }
   return ReceiptScan(
     rows: rows,
@@ -312,26 +353,57 @@ ReceiptScan parseReceipt(
     total: total,
     date: date,
     time: time,
-    place: _findPlace(rows),
     items: items,
+    checked: checked,
     unpricedNames: items.isEmpty
         ? [for (final n in unpriced) cleanItemName(n)]
         : const [],
+    placeCandidates: _placeCandidates(rows),
+    bizNo: findBizNo(rows),
   );
 }
 
-/// 두 번 이상 나오는 금액 중 가장 자주 나오는 것(같으면 큰 것). 100원 미만은 수량일 수 있어 뺀다.
-int? _repeatedAmount(List<String> rows) {
-  final counts = <int, int>{};
+/// 결제 금액. 여러 줄에 나오는 금액(같은 줄 안의 반복은 한 번으로 센다)을 믿는다.
+int? _decideTotal(List<String> rows, List<_ItemLine> lines) {
+  final rowsWith = <int, int>{};
   for (final row in rows) {
     if (_hasAny(row, _notTotalKeywords)) continue;
-    for (final v in _moneyIn(row)) {
-      if (v >= 100 && v < 10000000) counts[v] = (counts[v] ?? 0) + 1;
+    for (final v in _moneyIn(row).toSet()) {
+      if (v >= 100 && v < 10000000) rowsWith[v] = (rowsWith[v] ?? 0) + 1;
     }
   }
-  final repeated = counts.entries.where((e) => e.value >= 2).toList()
-    ..sort((a, b) => b.value != a.value ? b.value - a.value : b.key - a.key);
-  return repeated.firstOrNull?.key;
+  final repeated = [
+    for (final e in rowsWith.entries)
+      if (e.value >= 2) e.key,
+  ];
+  final maxRepeated = repeated.isEmpty ? null : repeated.reduce(math.max);
+  final keyword = _findTotal(rows);
+  if (keyword != null &&
+      (maxRepeated == null ||
+          keyword >= maxRepeated ||
+          repeated.contains(keyword))) {
+    return keyword;
+  }
+  if (maxRepeated != null) return maxRepeated;
+  final priced = lines.where((l) => l.amount >= 100);
+  if (priced.isNotEmpty) return priced.fold<int>(0, (s, l) => s + l.amount);
+  return _largestAmount(rows);
+}
+
+/// 품목이 시작되기 전 마지막 가게 정보 줄(날짜·시각·전화번호·사업자번호가 있는 줄).
+/// 낱말이 아니라 숫자 모양으로 찾는다. 없으면 -1.
+int _itemsStart(List<String> rows, int before) {
+  var start = -1;
+  for (var i = 0; i < before && i < rows.length; i++) {
+    final r = rows[i];
+    if (_datePatterns.any((p) => p.hasMatch(r)) ||
+        _timePattern.hasMatch(r) ||
+        RegExp(r'\d{2,4}-\d{3,4}-\d{4}').hasMatch(r) ||
+        _bizNoPattern.hasMatch(r)) {
+      start = i;
+    }
+  }
+  return start;
 }
 
 int? _findTotal(List<String> rows) {
@@ -410,28 +482,47 @@ String cleanPlaceName(String s) => s
     .replaceAll(RegExp(r'\s+'), ' ')
     .trim();
 
-String? _findPlace(List<String> rows) {
+/// 구매처 후보(최대 3개): "상호·가맹점명 : ○○" 줄의 값, 그다음 맨 위쪽 줄들.
+/// 자동으로 채우지 않고 버튼으로 보여준다(한글 상호는 인식이 자주 틀린다).
+List<String> _placeCandidates(List<String> rows) {
+  final out = <String>[];
+  void add(String name) {
+    final letters = RegExp(r'[가-힣A-Za-z]').allMatches(name).length;
+    final digits = RegExp(r'\d').allMatches(name).length;
+    if (letters < 2 || digits > letters) return;
+    if (!out.contains(name)) out.add(name);
+  }
+
   for (final row in rows) {
     // "가맹점번호 : 199432256"처럼 번호를 뜻하는 줄은 상호가 아니다.
     final m = RegExp(r'(상호|가맹점명|가맹점(?!번호)|매장명|점포명|상\s*호)\s*[:：]?\s*(.+)')
         .firstMatch(row);
-    if (m != null) {
-      final name = cleanPlaceName(m[2]!.split(RegExp(r'\s{2,}')).first);
-      final letters = RegExp(r'[가-힣A-Za-z]').allMatches(name).length;
-      final digits = RegExp(r'\d').allMatches(name).length;
-      if (letters >= 2 && digits <= letters) return name;
-    }
+    if (m != null) add(cleanPlaceName(m[2]!.split(RegExp(r'\s{2,}')).first));
   }
-  for (final row in rows.take(6)) {
-    if (_hasAny(row, _notPlaceKeywords)) continue;
-    final letters = RegExp(r'[가-힣A-Za-z]').allMatches(row).length;
-    final digits = RegExp(r'\d').allMatches(row).length;
-    if (letters < 2 || digits > letters) continue;
-    final name = cleanPlaceName(row);
-    if (name.isNotEmpty) return name;
+  for (final row in rows.take(8)) {
+    // "교환권 번호 : 001"처럼 쌍점이 있는 줄은 가게 정보가 아니라 항목·값이다.
+    if (row.contains(':') || _hasAny(row, _notPlaceKeywords)) continue;
+    add(cleanPlaceName(row));
+    if (out.length >= 3) break;
+  }
+  return out.take(3).toList();
+}
+
+final _bizNoPattern = RegExp(
+  r'(?<![\d-])([1-9]\d{2})-?(\d{2})-?(\d{5})(?![\d-])',
+);
+
+/// 사업자등록번호(숫자 10자리, 0으로 시작하지 않음). 전화번호(0으로 시작)·주문번호(더 긴 숫자)와 구분한다.
+String? findBizNo(List<String> rows) {
+  for (final row in rows) {
+    final m = _bizNoPattern.firstMatch(row);
+    if (m != null) return '${m[1]}${m[2]}${m[3]}';
   }
   return null;
 }
+
+/// 사업자번호로 가게 이름을 기억할 때의 열쇠(구매처 기억과 같은 표, 다른 열쇠).
+String bizKeyOf(String bizNo) => 'biz:$bizNo';
 
 final _numericWord = RegExp(r'^-?[\d,.]+원?$');
 
@@ -482,68 +573,44 @@ String placeKeyOf(String place) => _compact(cleanPlaceName(place));
   final name = words.join(' ');
   if (numbers.isEmpty) return (name, null);
   final last = numbers.last.replaceAll('원', '');
-  if (last.startsWith('-')) return (name, -1);
   return (name, int.tryParse(last.replaceAll(RegExp(r'[,.]'), '')));
 }
 
 bool _hasLetters(String s) => RegExp(r'[가-힣A-Za-z]').hasMatch(s);
 
-/// 품목(이름 + 금액)과, 가격 없이 이름(과 수량)만 있는 품목 이름들.
-(List<ReceiptItem>, List<String>) _findItems(List<String> rows) {
-  var start = rows.indexWhere((r) => _hasAny(r, _headerKeywords));
-  var end = rows.length;
-  for (var i = (start < 0 ? 0 : start + 1); i < rows.length; i++) {
-    if (_hasAny(rows[i], _itemsEndKeywords)) {
-      end = i;
-      break;
-    }
-  }
-  if (start < 0) {
-    // 머리줄이 없으면 가게 정보·날짜 줄 다음부터.
-    start = -1;
-    for (var i = 0; i < end; i++) {
-      final r = rows[i];
-      if (_hasAny(r, _shopInfoKeywords) ||
-          _datePatterns.any((p) => p.hasMatch(r)) ||
-          _timePattern.hasMatch(r)) {
-        start = i;
-      }
-    }
-  }
+/// 가격(또는 수량)이 붙은 줄 하나. [row]는 [rows]에서의 위치.
+class _ItemLine {
+  const _ItemLine(this.row, this.name, this.amount);
+  final int row;
+  final String name;
 
-  final items = <ReceiptItem>[];
-  final unpriced = <String>[];
+  /// 줄 끝 금액. 할인 줄은 음수, 수량만 있으면 100 미만.
+  final int amount;
+}
+
+/// 이름 + 끝쪽 숫자가 있는 줄을 모두 모은다(낱말로 거르지 않는다).
+/// 이름만 있는 줄 다음에 숫자만 있는 줄이 오면 한 줄로 본다(마트 영수증의 바코드 줄).
+/// 쌍점이 있는 줄("주문번호 : …")은 항목·값이라 뺀다.
+List<_ItemLine> _itemLines(List<String> rows) {
+  final out = <_ItemLine>[];
   String? pendingName;
-  for (var i = start + 1; i < end; i++) {
+  for (var i = 0; i < rows.length; i++) {
     final row = rows[i];
-    // "주문번호 : …", "카드번호 : …"처럼 쌍점이 있는 줄은 품목이 아니다.
-    if (_hasAny(row, _notItemKeywords) || row.contains(':')) {
+    if (row.contains(':')) {
       pendingName = null;
       continue;
     }
     var (name, amount) = _splitItemRow(row);
-    // 이름만 있는 줄 다음에 숫자만 있는 줄이 오면 한 품목으로 본다.
     if (amount == null) {
       pendingName = _hasLetters(name) ? name : null;
       continue;
     }
     if (!_hasLetters(name) && pendingName != null) name = pendingName;
     pendingName = null;
-    if (!_hasLetters(name) || amount < 0 || amount >= 10000000) continue;
-    // 100원 미만은 가격이 아니라 수량으로 본다("아메리카노 HOT  1").
-    if (amount < 100) {
-      unpriced.add(name);
-      continue;
-    }
-    items.add(
-      ReceiptItem(
-        key: itemKeyOf(name),
-        name: cleanItemName(name),
-        amount: amount,
-      ),
-    );
+    if (!_hasLetters(name) || amount.abs() >= 10000000) continue;
+    out.add(_ItemLine(i, name, amount));
   }
-  return (items, unpriced);
+  return out;
 }
 
 // ── 나눠 저장하기 ──────────────────────────────────────────────────────────

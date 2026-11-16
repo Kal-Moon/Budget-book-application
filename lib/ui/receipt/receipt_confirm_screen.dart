@@ -35,14 +35,18 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
         ? ''
         : formatNumber(widget.initial.scan.total!),
   );
-  late final _place = TextEditingController(
-    text: widget.initial.scan.place ?? '',
-  );
+  late final _place = TextEditingController(text: widget.initial.place);
   late DateTime _date = widget.initial.scan.date ?? ref.read(todayProvider);
   late String _time =
       widget.initial.scan.time ?? timeKeyOf(ref.read(clockProvider).now());
   late final List<ReceiptItem> _items = [...widget.initial.items];
   late final List<int?> _categoryOf = [...widget.initial.categoryOf];
+
+  /// 품목 후보마다 체크 여부. 후보 합계가 결제 금액과 맞을 때만 처음부터 체크돼 있다.
+  late final List<bool> _checked = [
+    for (var i = 0; i < widget.initial.items.length; i++)
+      i < widget.initial.scan.checked.length && widget.initial.scan.checked[i],
+  ];
   late int? _singleCategory = widget.initial.placeCategoryId;
   bool _saving = false;
 
@@ -55,10 +59,19 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
 
   int get _totalAmount => parseAmount(_total.text);
 
-  /// 모든 품목에 카테고리가 있을 때만 저장할 내역을 만든다.
+  List<int> get _selected => [
+    for (var i = 0; i < _items.length; i++)
+      if (_checked[i]) i,
+  ];
+
+  int get _selectedSum => _selected.fold(0, (s, i) => s + _items[i].amount);
+
+  /// 체크한 품목에 모두 카테고리가 있을 때만 저장할 내역을 만든다.
+  /// 체크한 품목이 없으면 결제 금액 1건(카테고리 하나).
   ReceiptPlan? _plan() {
     if (_totalAmount <= 0) return null;
-    if (_items.isEmpty) {
+    final selected = _selected;
+    if (selected.isEmpty) {
       return _singleCategory == null
           ? null
           : planReceiptEntries(
@@ -69,10 +82,10 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
               unpricedNames: widget.initial.scan.unpricedNames,
             );
     }
-    if (_categoryOf.any((c) => c == null)) return null;
+    if (selected.any((i) => _categoryOf[i] == null)) return null;
     return planReceiptEntries(
-      items: _items,
-      categoryOf: [for (final c in _categoryOf) c!],
+      items: [for (final i in selected) _items[i]],
+      categoryOf: [for (final i in selected) _categoryOf[i]!],
       total: _totalAmount,
     );
   }
@@ -102,6 +115,34 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
     }
   }
 
+  /// 구매처 후보를 고르면, 같은 구매처의 최근 내역 카테고리를 아직 안 정한 곳에 채운다.
+  void _choosePlace(String place) {
+    final key = placeKeyOf(place);
+    final past =
+        (ref.read(allEntriesProvider).value ?? const <Entry>[])
+            .where(
+              (e) =>
+                  e.kind == EntryKind.expense &&
+                  e.place.isNotEmpty &&
+                  placeKeyOf(e.place) == key,
+            )
+            .toList()
+          ..sort(
+            (a, b) => '${b.date} ${b.time}'.compareTo('${a.date} ${a.time}'),
+          );
+    final guess = past.firstOrNull?.categoryId;
+    final expense = ref.read(categoriesProvider(EntryKind.expense)).value;
+    final valid = expense != null && expense.any((c) => c.id == guess);
+    setState(() {
+      _place.text = place;
+      if (!valid) return;
+      _singleCategory ??= guess;
+      for (var i = 0; i < _categoryOf.length; i++) {
+        _categoryOf[i] ??= guess;
+      }
+    });
+  }
+
   Future<int?> _pickCategory(int? current) =>
       showCategoryPicker(context, kind: EntryKind.expense, selectedId: current);
 
@@ -122,6 +163,7 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
   void _removeItem(int index) => setState(() {
     _items.removeAt(index);
     _categoryOf.removeAt(index);
+    _checked.removeAt(index);
   });
 
   Future<void> _save(ReceiptPlan plan) async {
@@ -151,7 +193,7 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
       ],
       [
         for (final (i, item) in _items.indexed)
-          if (item.key.isNotEmpty)
+          if (item.key.isNotEmpty && _checked[i])
             ReceiptMemoriesCompanion.insert(
               kind: ReceiptMemoryKind.item,
               key: item.key,
@@ -162,6 +204,14 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
           ReceiptMemoriesCompanion.insert(
             kind: ReceiptMemoryKind.place,
             key: placeKeyOf(place),
+            categoryId: Value(largest),
+          ),
+        // 사업자번호 → 가게 이름: 다음에 같은 가게 영수증이면 구매처를 자동으로 채운다.
+        if (widget.initial.scan.bizNo != null && place.isNotEmpty)
+          ReceiptMemoriesCompanion.insert(
+            kind: ReceiptMemoryKind.place,
+            key: bizKeyOf(widget.initial.scan.bizNo!),
+            name: Value(place),
             categoryId: Value(largest),
           ),
       ],
@@ -182,6 +232,8 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
     final categories = ref.watch(categoryMapProvider).value ?? const {};
     final expenseCats =
         ref.watch(categoriesProvider(EntryKind.expense)).value ?? const [];
+    // 구매처 후보를 고를 때 지난 내역에서 카테고리를 짐작하려면 미리 읽어 둬야 한다.
+    ref.watch(allEntriesProvider);
     final plan = _plan();
 
     return Scaffold(
@@ -236,18 +288,36 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
           _Box(
             child: TextField(
               controller: _place,
+              onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                hintText: '예: 이마트 (선택)',
+                hintText: '아래 후보를 누르거나 직접 입력 (선택)',
                 border: InputBorder.none,
                 isDense: true,
               ),
             ),
           ),
+          // 한글 상호는 인식이 자주 틀려서 자동으로 채우지 않고 후보로 보여준다.
+          if (widget.initial.scan.placeCandidates.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final cand in widget.initial.scan.placeCandidates)
+                  ActionChip(
+                    label: Text(cand),
+                    onPressed: () => _choosePlace(cand),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
-          if (_items.isEmpty) ...[
+          if (_selected.isEmpty) ...[
             const _Label('카테고리'),
             Text(
-              widget.initial.scan.unpricedNames.isEmpty
+              _items.isNotEmpty
+                  ? '체크한 품목이 없어서 결제 금액 그대로 한 건으로 저장해요.'
+                  : widget.initial.scan.unpricedNames.isEmpty
                   ? '품목을 찾지 못했어요. 결제 금액 그대로 한 건으로 저장해요.'
                   : '품목별 가격이 없어서 결제 금액 그대로 한 건으로 저장해요. '
                         '(${widget.initial.scan.unpricedNames.join(', ')})',
@@ -261,12 +331,19 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                 if (id != null) setState(() => _singleCategory = id);
               },
             ),
-          ] else ...[
-            _Label('품목 ${_items.length}개'),
+            const SizedBox(height: 20),
+          ],
+          if (_items.isNotEmpty) ...[
+            _Label('품목 후보 ${_items.length}개'),
+            Text(
+              '나눠 저장할 품목을 체크하세요. 체크하지 않으면 결제 금액 1건으로 저장해요.',
+              style: TextStyle(fontSize: 12, color: c.textMuted),
+            ),
+            const SizedBox(height: 8),
             for (final (i, item) in _items.indexed)
               Container(
                 margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+                padding: const EdgeInsets.fromLTRB(2, 6, 4, 6),
                 decoration: BoxDecoration(
                   color: c.surface2,
                   border: Border.all(color: c.border, width: 0.5),
@@ -274,6 +351,11 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                 ),
                 child: Row(
                   children: [
+                    Checkbox(
+                      value: _checked[i],
+                      onChanged: (v) =>
+                          setState(() => _checked[i] = v ?? false),
+                    ),
                     Expanded(
                       child: InkWell(
                         onTap: () => _editItem(i),
@@ -303,13 +385,14 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                         ),
                       ),
                     ),
-                    _CategoryChip(
-                      category: categories[_categoryOf[i]],
-                      onTap: () async {
-                        final id = await _pickCategory(_categoryOf[i]);
-                        if (id != null) setState(() => _categoryOf[i] = id);
-                      },
-                    ),
+                    if (_checked[i])
+                      _CategoryChip(
+                        category: categories[_categoryOf[i]],
+                        onTap: () async {
+                          final id = await _pickCategory(_categoryOf[i]);
+                          if (id != null) setState(() => _categoryOf[i] = id);
+                        },
+                      ),
                     IconButton(
                       tooltip: '이 품목 빼기',
                       visualDensity: VisualDensity.compact,
@@ -319,9 +402,27 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                   ],
                 ),
               ),
+            // 선택 합계와 결제 금액이 맞는지(맞지 않으면 할인 등으로 보고 가장 큰 쪽에서 조정한다).
+            if (_selected.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 4),
+                child: Text(
+                  _selectedSum == _totalAmount
+                      ? '선택 합계 ${formatWon(_selectedSum)} = 결제 ${formatWon(_totalAmount)} ✓'
+                      : '선택 합계 ${formatWon(_selectedSum)} / 결제 ${formatWon(_totalAmount)} '
+                            '(차이 ${formatWon((_selectedSum - _totalAmount).abs())})',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: _selectedSum == _totalAmount
+                        ? c.income
+                        : c.textSecondary,
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             Text(
-              '한 번에 정하기',
+              '한 번에 정하기 (체크한 품목)',
               style: TextStyle(fontSize: 12, color: c.textMuted),
             ),
             const SizedBox(height: 6),
@@ -333,7 +434,7 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                   ActionChip(
                     label: Text('전부 ${cat.icon} ${cat.name}'),
                     onPressed: () => setState(() {
-                      for (var i = 0; i < _categoryOf.length; i++) {
+                      for (final i in _selected) {
                         _categoryOf[i] = cat.id;
                       }
                     }),
@@ -345,7 +446,11 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
           _Label(plan == null ? '저장될 내역' : '저장될 내역 (${plan.entries.length}건)'),
           if (plan == null)
             Text(
-              _totalAmount <= 0 ? '결제 금액을 입력해주세요' : '모든 품목의 카테고리를 골라주세요',
+              _totalAmount <= 0
+                  ? '결제 금액을 입력해주세요'
+                  : _selected.isEmpty
+                  ? '카테고리를 골라주세요'
+                  : '체크한 품목의 카테고리를 모두 골라주세요',
               style: TextStyle(fontSize: 12.5, color: c.danger),
             )
           else ...[

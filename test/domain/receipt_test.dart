@@ -16,8 +16,8 @@ const convenienceStore = [
   '삼각김밥참치마요  1  1,200',
   '(행사)바나나우유240ML  2  3,400',
   '1+1 행사할인  -1,700',
-  '과세물품가액  2,627',
-  '부가세  263',
+  '과세물품가액  2,636',
+  '부가세  264',
   '합계  2,900',
   '받을금액  2,900',
   '신용카드  2,900',
@@ -151,7 +151,8 @@ void main() {
     });
 
     test('구매처는 상호 줄', () {
-      expect(scan.place, '삼성웰스토리 크래프톤정글');
+      expect(scan.placeCandidates.first, '삼성웰스토리 크래프톤정글');
+      expect(scan.bizNo, '6748502577');
     });
 
     test('날짜·시간', () {
@@ -161,6 +162,7 @@ void main() {
 
     test('가격 없는 품목 하나는 결제 금액으로, 카드 정보 줄은 품목이 아니다', () {
       expect(scan.items.map((i) => (i.name, i.amount)), [('아메리카노 HOT', 1700)]);
+      expect(scan.checked, [true]);
     });
   });
 
@@ -201,6 +203,100 @@ void main() {
     expect(plan.entries.single.amount, 8000);
   });
 
+  // ── 폰에서 실제로 나온 오타 그대로(빌드 27·28). 낱말이 깨져도 숫자로 판단해야 한다. ──
+  const cafeMisreadA = [
+    '[영수증]',
+    '고화 버호 : 001',
+    '삼성웰스토리 크래프톤정글',
+    '경기도 용인시 처인구 포곡읍  영문리 46-27 크래프톤',
+    '정글',
+    '6748502577 / 송규종 / TEL : 031-111-1111',
+    '주문번호 : 20260010023125',
+    '주문일시 : 2026-11-16 09:06:31',
+    '상품명  수량',
+    '아메리카노 HOT  1',
+    '공급가액  1,546',
+    '부 가 세  154',
+    '합 계  1,700',
+    '철제금의  1,700',
+    '신용카드 : 1,700',
+    '승인번호 : 77869822',
+    '가맹점번호 : 199432256',
+  ];
+  const cafeMisreadB = [
+    '[영수증]',
+    '교환권 번호 : 001',
+    '스토리 크래프톤2',
+    '경기도 용인시 처인구 포곡읍  영문리 46-27 크래프톤',
+    '6748502577 / 송규종 / TEL : 031-111-1111',
+    '주문일시 : 2026-11-16 09:06:31',
+    '상품명  수량',
+    '아메리카노 HOT  1',
+    '급가액  1,546',
+    '가 세  154',
+    '겨  1,700',
+    '결제금액  1,700',
+    '신용카드 : 1,700',
+  ];
+
+  for (final (label, rows) in [
+    ('빌드 27: "고화 버호", "철제금의"', cafeMisreadA),
+    ('빌드 28: "급가액", "가 세", "겨"', cafeMisreadB),
+  ]) {
+    group('실제 오타 재현 · $label', () {
+      final scan = parseReceipt(rows, today: DateTime(2026, 11, 16, 10));
+
+      test('결제 금액 1,700', () => expect(scan.total, 1700));
+
+      test('세금·합계 줄은 품목이 아니고, 아메리카노 하나가 결제 금액으로 체크된다', () {
+        expect(scan.items.map((i) => (i.name, i.amount)), [
+          ('아메리카노 HOT', 1700),
+        ]);
+        expect(scan.checked, [true]);
+      });
+
+      test('구매처는 자동으로 정하지 않고 후보로(쌍점 있는 줄은 후보가 아님)', () {
+        expect(scan.placeCandidates, isNot(contains('고화 버호 : 001')));
+        expect(scan.placeCandidates.any((p) => p.contains('크래프톤')), isTrue);
+        expect(scan.bizNo, '6748502577');
+      });
+    });
+  }
+
+  test('품목 합계가 결제 금액과 맞지 않으면 아무것도 미리 체크하지 않는다', () {
+    final scan = parseReceipt(const [
+      '동네마트',
+      '2026-11-15 10:00',
+      '사과  3,000',
+      '배  4,000',
+      '결제금액  9,900',
+      '카드 : 9,900',
+    ], today: today);
+    expect(scan.total, 9900);
+    expect(scan.items.map((i) => i.amount), [3000, 4000]);
+    expect(scan.checked, [false, false]);
+    expect(scan.matched, isFalse);
+  });
+
+  test('같은 가격 품목이 두 개여도 결제 금액은 여러 줄에 나오는 큰 금액', () {
+    final scan = parseReceipt(const [
+      '분식',
+      '2026-11-15 12:00',
+      '김밥  2,500',
+      '김밥  2,500',
+      '합계  5,000',
+      '카드 : 5,000',
+    ], today: today);
+    expect(scan.total, 5000);
+    expect(scan.checked, [true, true]);
+  });
+
+  test('사업자번호: 하이픈 있어도 없어도, 전화번호·긴 주문번호는 아님', () {
+    expect(findBizNo(const ['사업자 123-45-67890']), '1234567890');
+    expect(findBizNo(const ['6748502577 / 대표']), '6748502577');
+    expect(findBizNo(const ['TEL 0311111111', '주문번호 20260010023125']), isNull);
+  });
+
   group('편의점 영수증', () {
     final scan = parseReceipt(convenienceStore, today: today);
 
@@ -214,7 +310,7 @@ void main() {
     });
 
     test('구매처는 맨 위 상호 줄', () {
-      expect(scan.place, 'GS25 역삼점');
+      expect(scan.placeCandidates.first, 'GS25 역삼점');
     });
 
     test('품목: 할인 줄은 빼고, 이름은 정리한다', () {
@@ -222,6 +318,11 @@ void main() {
         ('삼각김밥참치마요', 1200),
         ('바나나우유', 3400),
       ]);
+    });
+
+    test('세금 줄(2,636·264)은 숫자로 걸러지고, 할인을 빼면 결제 금액과 맞아 미리 체크된다', () {
+      expect(scan.checked, [true, true]);
+      expect(scan.matched, isTrue);
     });
   });
 
@@ -233,7 +334,7 @@ void main() {
     });
 
     test('구매처: [영수증] 줄은 건너뛰고 (주)는 뺀다', () {
-      expect(scan.place, '이마트 성수점');
+      expect(scan.placeCandidates.first, '이마트 성수점');
     });
 
     test('날짜는 점으로 쓴 형식도', () {
@@ -249,6 +350,10 @@ void main() {
         ('유리컵', 4000),
       ]);
     });
+
+    test('여러 품목: 합계 23,300 − 할인 1,300 = 결제 22,000이라 모두 체크', () {
+      expect(scan.checked, [true, true, true, true]);
+    });
   });
 
   group('카드 전표', () {
@@ -259,7 +364,7 @@ void main() {
     });
 
     test('가맹점명·두 자리 연도', () {
-      expect(scan.place, '스타벅스 강남점');
+      expect(scan.placeCandidates.first, '스타벅스 강남점');
       expect(scan.date, DateTime(2026, 11, 11));
       expect(scan.time, '09:12');
     });

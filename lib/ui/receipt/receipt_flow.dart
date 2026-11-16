@@ -83,10 +83,14 @@ class ReceiptDraft {
     required this.scan,
     required this.items,
     required this.categoryOf,
+    this.place = '',
     this.placeCategoryId,
   });
 
   final ReceiptScan scan;
+
+  /// 사업자번호로 기억해 둔 가게 이름(처음 보는 가게면 빈 칸, 후보 버튼으로 고른다).
+  final String place;
 
   /// 기억해 둔 이름으로 바꾼 품목들.
   final List<ReceiptItem> items;
@@ -112,9 +116,19 @@ ReceiptDraft applyReceiptMemory(
     for (final m in memories)
       if (m.kind == ReceiptMemoryKind.item) m.key: m,
   };
-  int? placeCategory;
-  final place = scan.place;
-  if (place != null && place.isNotEmpty) {
+  // 구매처: 사업자번호로 기억해 둔 가게 이름. 한글 상호는 인식이 자주 틀려서 자동으로 고르지 않는다.
+  final biz = scan.bizNo;
+  final bizMemory = biz == null
+      ? null
+      : memories
+            .where(
+              (m) =>
+                  m.kind == ReceiptMemoryKind.place && m.key == bizKeyOf(biz),
+            )
+            .firstOrNull;
+  final place = bizMemory?.name ?? '';
+  int? placeCategory = valid(bizMemory?.categoryId);
+  if (placeCategory == null && place.isNotEmpty) {
     final key = placeKeyOf(place);
     placeCategory = valid(
       memories
@@ -151,6 +165,7 @@ ReceiptDraft applyReceiptMemory(
     scan: scan,
     items: items,
     categoryOf: categoryOf,
+    place: place,
     placeCategoryId: placeCategory,
   );
 }

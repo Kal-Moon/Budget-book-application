@@ -12,6 +12,7 @@ import 'pump.dart';
 const martRows = [
   '(주)이마트 성수점',
   '전화 02-111-2222',
+  '사업자 123-45-67890',
   '구매일시 2026.11.07 14:05',
   '001 P)서울우유1000ML',
   '8801115114154  2,800  1  2,800',
@@ -66,9 +67,16 @@ void main() {
 
     expect(find.text('22,000'), findsOneWidget, reason: '결제 금액');
     expect(find.text('2026.11.07'), findsOneWidget);
-    expect(find.text('이마트 성수점'), findsOneWidget);
-    expect(find.text('품목 4개'), findsOneWidget);
-    expect(find.text('모든 품목의 카테고리를 골라주세요'), findsOneWidget);
+    // 구매처는 자동으로 채우지 않고 후보 버튼으로.
+    expect(find.widgetWithText(ActionChip, '이마트 성수점'), findsOneWidget);
+    expect(find.text('품목 후보 4개'), findsOneWidget);
+    // 23,300 − 할인 1,300 = 22,000이라 4개 모두 미리 체크돼 있다.
+    expect(
+      tester.widgetList<Checkbox>(find.byType(Checkbox)).map((c) => c.value),
+      [true, true, true, true],
+    );
+    expect(find.text('선택 합계 23,300원 / 결제 22,000원 (차이 1,300원)'), findsOneWidget);
+    expect(find.text('체크한 품목의 카테고리를 모두 골라주세요'), findsOneWidget);
 
     await tap(tester, find.text('전부 🍚 식비'));
     expect(find.text('저장될 내역 (1건)'), findsOneWidget);
@@ -79,6 +87,7 @@ void main() {
     }
     expect(find.text('저장될 내역 (2건)'), findsOneWidget);
     expect(find.text("할인 등 1,300원은 '쇼핑'에서 뺐어요"), findsOneWidget);
+    await tap(tester, find.widgetWithText(ActionChip, '이마트 성수점'));
     await tap(tester, find.text('저장 (2건)'));
 
     expect(find.text('영수증을 2건으로 나눠 저장했어요'), findsOneWidget);
@@ -117,27 +126,36 @@ void main() {
             name: Value(name),
             categoryId: Value(cat),
           ),
+        // 사업자번호로 기억해 둔 가게: 구매처가 자동으로 채워지고 카테고리도 짐작한다.
         ReceiptMemoriesCompanion.insert(
           kind: ReceiptMemoryKind.place,
-          key: placeKeyOf('이마트 성수점'),
+          key: bizKeyOf('1234567890'),
+          name: const Value('이마트 성수점'),
           categoryId: const Value(4),
         ),
       ]),
     );
     await scanReceipt(tester);
 
+    expect(
+      tester
+          .widget<TextField>(find.widgetWithText(TextField, '이마트 성수점'))
+          .controller!
+          .text,
+      '이마트 성수점',
+    );
     expect(find.text('우유'), findsOneWidget);
     expect(find.text('휴지'), findsOneWidget);
     expect(find.text('🍚 식비 ▾'), findsNWidgets(2));
     expect(
       find.text('🛍️ 쇼핑 ▾'),
       findsNWidgets(2),
-      reason: '유리컵은 기억이 없어 구매처 기억(쇼핑)으로',
+      reason: '유리컵은 기억이 없어 사업자번호로 기억한 가게의 카테고리(쇼핑)로',
     );
 
     // 유리컵을 빼고, 결제 금액을 고친다.
     await tap(tester, find.byTooltip('이 품목 빼기').last);
-    expect(find.text('품목 3개'), findsOneWidget);
+    expect(find.text('품목 후보 3개'), findsOneWidget);
     await tester.enterText(find.text('22,000'), '18000');
     await settle(tester);
     // 휴지 이름 고치기.
@@ -174,6 +192,9 @@ void main() {
     expect(find.text('6,500'), findsOneWidget);
     expect(find.text('09:12'), findsOneWidget);
     expect(find.textContaining('품목을 찾지 못했어요'), findsOneWidget);
+    expect(find.text('☕ 카페 ▾'), findsNothing, reason: '가게를 고르기 전');
+    // 후보 버튼으로 가게를 고르면 그 가게의 지난 내역 카테고리를 채운다.
+    await tap(tester, find.widgetWithText(ActionChip, '스타벅스 강남점'));
     expect(find.text('☕ 카페 ▾'), findsOneWidget);
     await tap(tester, find.text('저장'));
 
@@ -183,6 +204,34 @@ void main() {
     expect(saved.categoryId, 3);
     expect(saved.date, '2026-11-07');
     expect(saved.description, '');
+    expect(saved.place, '스타벅스 강남점');
+  });
+
+  testWidgets('합계가 맞지 않으면 체크 없이 후보만 보여주고, 체크하면 나눠 저장할 수 있다', (tester) async {
+    final db = await pumpApp(
+      tester,
+      receiptRows: const [
+        '동네마트',
+        '2026-11-07 10:00',
+        '사과  3,000',
+        '배  4,000',
+        '결제금액  9,900',
+        '카드 : 9,900',
+      ],
+    );
+    await scanReceipt(tester);
+    expect(
+      tester.widgetList<Checkbox>(find.byType(Checkbox)).map((c) => c.value),
+      [false, false],
+    );
+    expect(find.textContaining('체크한 품목이 없어서'), findsOneWidget);
+    // 아무것도 체크하지 않고 카테고리 하나로 저장 → 결제 금액 1건.
+    await tap(tester, find.text('카테고리 ▾'));
+    await tap(tester, find.text('식비').last);
+    await tap(tester, find.text('저장'));
+    final rows = await entriesOf(tester, db);
+    expect(rows.single.amount, 9900);
+    expect(rows.single.categoryId, 1);
   });
 
   testWidgets('인식 중 오류가 나면 오류 내용을 보여주고 복사할 수 있다', (tester) async {
