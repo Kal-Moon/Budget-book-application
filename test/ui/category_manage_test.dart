@@ -186,6 +186,77 @@ void main() {
     expect(merge.onPressed, isNull);
   });
 
+  testWidgets('카테고리 내역 보기: 들어 있는 내역을 보고, 한 건만 다른 카테고리로 옮길 수 있다', (
+    tester,
+  ) async {
+    final db = await pumpApp(
+      tester,
+      setup: (db) async {
+        await addEntry(
+          db,
+          date: '2026-11-07',
+          categoryId: 3,
+          amount: 4500,
+          description: '라떼',
+        );
+        await addEntry(
+          db,
+          date: '2026-11-05',
+          categoryId: 3,
+          amount: 3000,
+          description: '빵',
+          place: '동네빵집',
+        );
+      },
+    );
+    await openManage(tester);
+    await tap(tester, find.text('카페'));
+    await tap(tester, find.text('내역 2건 보기 ›'));
+
+    expect(find.text("'카페' 내역 2건"), findsOneWidget);
+    expect(find.text('라떼'), findsOneWidget);
+    expect(find.text('빵 · 동네빵집'), findsOneWidget);
+    expect(find.text('2026.11.07 12:00 · 4,500원'), findsOneWidget);
+
+    // 빵만 식비로 옮긴다.
+    await tap(tester, find.text('☕ 카페 ▾').last);
+    await tap(tester, find.text('식비').last);
+    expect(find.text("'식비'(으)로 옮겼어요"), findsOneWidget);
+    expect(find.text("'카페' 내역 1건"), findsOneWidget);
+    expect(find.text('빵 · 동네빵집'), findsNothing);
+    final rows = await tester.runAsync(() => db.select(db.entries).get());
+    expect(
+      {for (final e in rows!) e.description: e.categoryId},
+      {'라떼': 3, '빵': 1},
+    );
+  });
+
+  testWidgets('합치기·삭제 시트에서도 내역을 먼저 볼 수 있고, 옮긴 만큼 건수가 줄어든다', (tester) async {
+    await pumpApp(
+      tester,
+      setup: (db) async {
+        await addEntry(db, date: '2026-11-07', categoryId: 3, amount: 4500);
+        await addEntry(db, date: '2026-11-06', categoryId: 3, amount: 2000);
+      },
+    );
+    await openManage(tester);
+    await tap(tester, find.text('카페'));
+    await tap(tester, find.text('이 카테고리 삭제하기'));
+    expect(find.text('내역 2건 보기 ›'), findsOneWidget);
+    await tap(tester, find.text('내역 2건 보기 ›'));
+    await tap(tester, find.text('☕ 카페 ▾').first);
+    await tap(tester, find.text('식비').last);
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(find.text('내역 1건 보기 ›'), findsOneWidget);
+    await tap(tester, find.text('식비(으)로 옮기기'));
+    expect(
+      find.textContaining('내역 1건과 예산'),
+      findsOneWidget,
+      reason: '확인창도 새 건수',
+    );
+  });
+
   testWidgets('내역이 없는 카테고리는 확인 한 번으로 삭제, 마지막 1개는 삭제할 수 없다', (tester) async {
     await pumpApp(tester);
     await openManage(tester);

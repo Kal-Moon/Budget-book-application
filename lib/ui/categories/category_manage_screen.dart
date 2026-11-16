@@ -10,6 +10,7 @@ import '../../domain/categories.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
 import 'category_edit_sheet.dart';
+import 'category_entries_screen.dart';
 
 /// 카테고리 관리 화면을 연다. [kind]는 처음 보여줄 탭.
 Future<void> openCategoryManage(
@@ -118,7 +119,10 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
                   color: c.textSecondary,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 4),
+              // 먼저 들어 있는 내역을 보고, 필요하면 내역마다 다른 카테고리로 옮길 수 있다.
+              CategoryEntriesLink(category: cat),
+              const SizedBox(height: 8),
               for (final other in cats.where((o) => o.id != cat.id))
                 _SheetRow(
                   icon: other.icon,
@@ -140,7 +144,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
       return;
     }
     final db = ref.read(databaseProvider);
-    final count = await db.countEntriesIn(cat.id);
+    var count = await db.countEntriesIn(cat.id);
     if (!mounted) return;
 
     int? moveTo;
@@ -148,6 +152,9 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
       final choice = await _showMoveSheet(cat, cats, count);
       if (choice == null || !mounted) return;
       moveTo = choice == _deleteWithEntries ? null : choice;
+      // 시트에서 "내역 보기"로 일부를 다른 카테고리로 옮겼을 수 있다.
+      count = await db.countEntriesIn(cat.id);
+      if (!mounted) return;
     }
 
     final target = cats.where((c) => c.id == moveTo).firstOrNull;
@@ -208,7 +215,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                '이 카테고리로 기록된 $count건의 내역을 다른 카테고리로 옮길 수 있어요. '
+                '이 카테고리의 내역을 다른 카테고리로 옮길 수 있어요. '
                 '옮길 카테고리를 골라주세요. 예산도 함께 옮겨져요.',
                 style: TextStyle(
                   fontSize: 13,
@@ -216,7 +223,10 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
                   color: c.textSecondary,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 4),
+              // 먼저 들어 있는 내역을 보고, 필요하면 내역마다 다른 카테고리로 옮길 수 있다.
+              CategoryEntriesLink(category: cat),
+              const SizedBox(height: 8),
               for (final other in cats.where((o) => o.id != cat.id))
                 _SheetRow(
                   icon: other.icon,

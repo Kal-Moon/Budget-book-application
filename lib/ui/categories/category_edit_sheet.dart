@@ -9,6 +9,7 @@ import '../../domain/budget.dart';
 import '../../domain/categories.dart';
 import '../theme.dart';
 import '../widgets/amount_field.dart';
+import 'category_entries_screen.dart';
 
 /// 카테고리 하나를 고치는 시트: 이름·아이콘·색상·이번 달 예산(항목별 방식의 지출만)·합치기·삭제.
 /// [siblings]는 같은 종류의 카테고리 전체(이름 중복 검사, 마지막 1개 삭제 막기).
@@ -258,7 +259,8 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                 ),
                 child: const Text('저장'),
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 4),
+              CategoryEntriesLink(category: widget.category),
               // 겹치는 카테고리(가져오기 등)를 하나로. 합칠 곳이 있어야 한다.
               OutlinedButton(
                 onPressed: canDelete

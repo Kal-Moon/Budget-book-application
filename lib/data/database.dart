@@ -235,6 +235,12 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  /// 내역 하나만 다른 카테고리로 옮긴다(카테고리 내역 화면에서).
+  Future<void> setEntryCategory(int entryId, int categoryId) =>
+      (update(entries)..where((e) => e.id.equals(entryId))).write(
+        EntriesCompanion(categoryId: Value(categoryId)),
+      );
+
   Future<void> deleteEntry(int id) =>
       (delete(entries)..where((e) => e.id.equals(id))).go();
 
