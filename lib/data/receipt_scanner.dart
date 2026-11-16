@@ -43,6 +43,7 @@ Future<List<OcrLine>?> _scanWithMlKit(ReceiptSource source) async {
             line.boundingBox.top,
             line.boundingBox.right,
             line.boundingBox.bottom,
+            angle: line.angle ?? 0,
           ),
     ];
   } finally {

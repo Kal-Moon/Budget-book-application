@@ -52,7 +52,11 @@ Future<bool> startReceiptInput(BuildContext context, WidgetRef ref) async {
     return false;
   }
 
-  final scan = parseReceipt(rows, today: ref.read(todayProvider));
+  final scan = parseReceipt(
+    rows,
+    today: ref.read(todayProvider),
+    fragments: [for (final l in lines) l.debugText],
+  );
   final db = ref.read(databaseProvider);
   final memories = await db.getReceiptMemories();
   final expenseIds = {

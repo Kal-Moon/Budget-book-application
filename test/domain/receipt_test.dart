@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/domain/receipt.dart';
 
@@ -51,6 +53,58 @@ const cardSlip = [
   '승인번호 12345678',
 ];
 
+/// 사진 속 영수증을 재현한다: 반듯한 배치(x0, x1, y, 높이)를 [degrees]만큼 기울여
+/// 글자 인식기처럼 기울어진 조각의 바깥 상자를 만든다(오른쪽이 올라가면 음수).
+List<OcrLine> tilted(
+  List<(String, double, double, double, double)> layout, {
+  double degrees = -2,
+}) {
+  final k = math.tan(degrees * math.pi / 180);
+  return [
+    for (final (text, x0, x1, y, h) in layout)
+      OcrLine(
+        text,
+        x0,
+        math.min(y + x0 * k, y + x1 * k),
+        x1,
+        math.max(y + h + x0 * k, y + h + x1 * k),
+        angle: degrees,
+      ),
+  ];
+}
+
+/// 빌드 26에서 사용자가 찍은 카페 영수증(삼성웰스토리, 2026-11-16) 배치.
+/// 오른쪽이 살짝 올라가 있어서, 예전 규칙은 상호 줄과 주소 줄을 섞고("동스토리 크랜프톤정e
+/// 여문리 46-27"), 아메리카노에 공급가액 1,546을 붙이고, 결제 금액을 3,246으로 읽었다.
+final cafeReceipt = tilted([
+  ('[영수증]', 500, 900, 0, 60),
+  ('교환권 번호 : 001', 100, 520, 70, 42),
+  ('삼성웰스토리 크래프톤정글', 100, 710, 120, 42),
+  ('경기도 용인시 처인구 포곡읍', 90, 700, 165, 42),
+  ('영문리 46-27 크래프톤', 720, 1330, 165, 42),
+  ('정글', 110, 190, 210, 42),
+  ('6748502577 / 송규종 / TEL : 031-111-1111', 90, 1090, 260, 42),
+  ('주문번호 : 20260010023125', 90, 740, 305, 42),
+  ('주문일시 : 2026-11-16 09:06:31', 90, 830, 350, 42),
+  ('상품명', 90, 230, 430, 42),
+  ('수량', 1200, 1300, 430, 42),
+  ('아메리카노 HOT', 90, 420, 520, 42),
+  ('1', 1280, 1300, 520, 42),
+  ('공급가액', 90, 260, 610, 42),
+  ('1,546', 1180, 1310, 610, 42),
+  ('부 가 세', 90, 260, 655, 42),
+  ('154', 1230, 1310, 655, 42),
+  ('합 계', 90, 300, 740, 42),
+  ('1,700', 1180, 1310, 740, 42),
+  ('결제금액', 90, 270, 790, 70),
+  ('1,700', 1180, 1310, 790, 70),
+  ('신용카드 : 1,700', 90, 470, 900, 42),
+  ('할부개월 : 00', 90, 400, 945, 42),
+  ('승인번호 : 77869822', 90, 540, 990, 42),
+  ('카드번호 : 971015*********', 90, 740, 1035, 42),
+  ('가맹점번호 : 199432256', 90, 620, 1080, 42),
+]);
+
 void main() {
   group('줄 맞추기', () {
     test('세로 위치가 겹치는 조각은 한 줄로, 왼쪽부터 잇는다', () {
@@ -64,9 +118,87 @@ void main() {
       expect(rows, ['삼각김밥  1  1,200', '합계  1,200']);
     });
 
+    test('기울어진 사진: 위아래로 붙은 줄은 섞지 않고, 오른쪽 숫자는 같은 줄에 붙인다', () {
+      final rows = rowsFromLines(cafeReceipt);
+      expect(rows, contains('삼성웰스토리 크래프톤정글'));
+      expect(rows, contains('경기도 용인시 처인구 포곡읍  영문리 46-27 크래프톤'));
+      expect(rows, contains('아메리카노 HOT  1'));
+      expect(rows, contains('공급가액  1,546'));
+      expect(rows, contains('결제금액  1,700'));
+    });
+
+    test('기울기 방향이 반대로 와도 같은 결과', () {
+      final flipped = [
+        for (final l in cafeReceipt)
+          OcrLine(l.text, l.left, l.top, l.right, l.bottom, angle: -l.angle),
+      ];
+      expect(rowsFromLines(flipped), rowsFromLines(cafeReceipt));
+    });
+
     test('빈 입력은 빈 목록', () {
       expect(rowsFromLines(const []), isEmpty);
     });
+  });
+
+  group('카페 영수증(빌드 26 사용자 사진 재현)', () {
+    final scan = parseReceipt(
+      rowsFromLines(cafeReceipt),
+      today: DateTime(2026, 11, 16, 10),
+    );
+
+    test('결제 금액 1,700(품목 합계 3,246이 아니라)', () {
+      expect(scan.total, 1700);
+    });
+
+    test('구매처는 상호 줄', () {
+      expect(scan.place, '삼성웰스토리 크래프톤정글');
+    });
+
+    test('날짜·시간', () {
+      expect(scan.date, DateTime(2026, 11, 16));
+      expect(scan.time, '09:06');
+    });
+
+    test('가격 없는 품목 하나는 결제 금액으로, 카드 정보 줄은 품목이 아니다', () {
+      expect(scan.items.map((i) => (i.name, i.amount)), [('아메리카노 HOT', 1700)]);
+    });
+  });
+
+  test('합계 말을 못 읽어도 여러 번 나오는 금액을 결제 금액으로', () {
+    final scan = parseReceipt(const [
+      '동네카페',
+      '상품명  수량',
+      '라떼  1',
+      '공급가액  4,091',
+      '부가세  409',
+      '합  4,500',
+      '갈제금역  4,500',
+      '카드 : 4,500',
+    ], today: today);
+    expect(scan.total, 4500);
+    expect(scan.items.single.amount, 4500, reason: '가격 없는 품목 하나');
+  });
+
+  test('가격 없는 품목이 여럿이면 품목 없이 한 건, 이름은 내역·메모로', () {
+    final scan = parseReceipt(const [
+      '동네카페',
+      '상품명  수량',
+      '라떼  1',
+      '쿠키  2',
+      '결제금액  8,000',
+    ], today: today);
+    expect(scan.items, isEmpty);
+    expect(scan.unpricedNames, ['라떼', '쿠키']);
+    final plan = planReceiptEntries(
+      items: const [],
+      categoryOf: const [],
+      total: scan.total!,
+      fallbackCategoryId: 3,
+      unpricedNames: scan.unpricedNames,
+    );
+    expect(plan.entries.single.description, '라떼 외 1건');
+    expect(plan.entries.single.memo, '라떼 / 쿠키');
+    expect(plan.entries.single.amount, 8000);
   });
 
   group('편의점 영수증', () {

@@ -66,6 +66,7 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
               categoryOf: const [],
               total: _totalAmount,
               fallbackCategoryId: _singleCategory,
+              unpricedNames: widget.initial.scan.unpricedNames,
             );
     }
     if (_categoryOf.any((c) => c == null)) return null;
@@ -246,7 +247,10 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
           if (_items.isEmpty) ...[
             const _Label('카테고리'),
             Text(
-              '품목을 찾지 못했어요. 결제 금액 그대로 한 건으로 저장해요.',
+              widget.initial.scan.unpricedNames.isEmpty
+                  ? '품목을 찾지 못했어요. 결제 금액 그대로 한 건으로 저장해요.'
+                  : '품목별 가격이 없어서 결제 금액 그대로 한 건으로 저장해요. '
+                        '(${widget.initial.scan.unpricedNames.join(', ')})',
               style: TextStyle(fontSize: 12, color: c.textMuted),
             ),
             const SizedBox(height: 8),
@@ -418,9 +422,18 @@ class _ReceiptConfirmScreenState extends ConsumerState<ReceiptConfirmScreen> {
                     icon: const Icon(Icons.copy, size: 16),
                     label: const Text('글자 복사'),
                     onPressed: () async {
+                      // 줄 단위 글자 + 진단용 조각 위치(잘못 읽은 영수증을 테스트로 재현할 때 쓴다).
+                      final scan = widget.initial.scan;
                       await Clipboard.setData(
                         ClipboardData(
-                          text: widget.initial.scan.rows.join('\n'),
+                          text: [
+                            ...scan.rows,
+                            if (scan.fragments.isNotEmpty) ...[
+                              '',
+                              '--- 진단용 조각 위치 ---',
+                              ...scan.fragments,
+                            ],
+                          ].join('\n'),
                         ),
                       );
                       if (context.mounted) showToast(context, '복사했어요');

@@ -1,45 +1,100 @@
+import 'dart:math' as math;
+
 import '../core/dates.dart';
 
 /// 영수증 사진에서 읽은 글자 한 줄과 화면 속 위치(글자 인식기가 준 그대로).
+/// [angle]은 글자 줄의 기울기(도). 사진이 기울어 있으면 0이 아니다.
 class OcrLine {
-  const OcrLine(this.text, this.left, this.top, this.right, this.bottom);
+  const OcrLine(
+    this.text,
+    this.left,
+    this.top,
+    this.right,
+    this.bottom, {
+    this.angle = 0,
+  });
 
   final String text;
   final double left;
   final double top;
   final double right;
   final double bottom;
+  final double angle;
 
+  double get centerX => (left + right) / 2;
   double get centerY => (top + bottom) / 2;
   double get height => bottom - top;
+
+  /// 진단용 한 줄: 글자와 위치(잘못 읽은 영수증을 테스트로 재현할 때 쓴다).
+  String get debugText =>
+      '${left.round()},${top.round()},${right.round()},${bottom.round()},'
+      '${angle.toStringAsFixed(1)}|$text';
 }
 
 /// 글자 인식기는 영수증의 열(품명·수량·금액)을 따로 읽는 일이 많다.
-/// 세로 위치가 겹치는 조각을 한 줄로 모으고, 왼쪽부터 두 칸 띄워 잇는다.
+/// 같은 높이의 조각을 한 줄로 모으고, 왼쪽부터 두 칸 띄워 잇는다.
+/// - 사진이 기울어 있으면 조각들의 기울기(중앙값)만큼 높이를 보정한다.
+/// - **가로로 겹치는 조각은 같은 줄로 묶지 않는다**: 위아래로 붙은 두 줄(상호·주소)이
+///   섞이던 문제(빌드 26)를 막는다. 한 줄 안의 조각은 서로 옆에 있어야 한다.
+/// - 들어갈 줄이 여럿이면 높이가 가장 가까운 줄로.
 List<String> rowsFromLines(List<OcrLine> lines) {
-  if (lines.isEmpty) return const [];
-  final sorted = [...lines]..sort((a, b) => a.centerY.compareTo(b.centerY));
-  final heights = [for (final l in sorted) l.height]..sort();
-  final tolerance = heights[heights.length ~/ 2] / 2;
+  final live = [
+    for (final l in lines)
+      if (l.text.trim().isNotEmpty) l,
+  ];
+  if (live.isEmpty) return const [];
+  final angles = [for (final l in live) l.angle]..sort();
+  final slope = math.tan(angles[angles.length ~/ 2] * math.pi / 180);
+  // 기울기 값의 방향(시계/반시계)을 문서로 확신할 수 없어서, 보정 없음과 양쪽 방향으로
+  // 모두 묶어 보고 줄이 가장 적게(옆 조각이 가장 잘 붙게) 나오는 쪽을 쓴다.
+  var best = _groupRows(live, 0);
+  for (final s in [slope, -slope]) {
+    if (s == 0) continue;
+    final rows = _groupRows(live, s);
+    if (rows.length < best.length) best = rows;
+  }
+  return best;
+}
+
+List<String> _groupRows(List<OcrLine> live, double slope) {
+  double level(OcrLine l) => l.centerY - l.centerX * slope;
+  final heights = [for (final l in live) l.height]..sort();
+  final tolerance = heights[heights.length ~/ 2] * 0.5;
+  final sorted = [...live]..sort((a, b) => level(a).compareTo(level(b)));
+
   final rows = <List<OcrLine>>[];
+  final rowLevel = <double>[];
   for (final line in sorted) {
-    final last = rows.isEmpty ? null : rows.last;
-    final lastCenter = last == null
-        ? null
-        : last.map((l) => l.centerY).reduce((a, b) => a + b) / last.length;
-    if (lastCenter != null && (line.centerY - lastCenter).abs() <= tolerance) {
-      last!.add(line);
-    } else {
+    final y = level(line);
+    int? best;
+    var bestGap = double.infinity;
+    for (var i = rows.length - 1; i >= 0 && i >= rows.length - 4; i--) {
+      final gap = (y - rowLevel[i]).abs();
+      if (gap > tolerance || gap >= bestGap) continue;
+      final overlaps = rows[i].any(
+        (o) => line.left < o.right && o.left < line.right,
+      );
+      if (overlaps) continue;
+      best = i;
+      bestGap = gap;
+    }
+    if (best == null) {
       rows.add([line]);
+      rowLevel.add(y);
+    } else {
+      rows[best].add(line);
+      rowLevel[best] =
+          rows[best].map(level).reduce((a, b) => a + b) / rows[best].length;
     }
   }
+  final order = [for (var i = 0; i < rows.length; i++) i]
+    ..sort((a, b) => rowLevel[a].compareTo(rowLevel[b]));
   return [
-    for (final row in rows)
-      (row..sort((a, b) => a.left.compareTo(b.left)))
+    for (final i in order)
+      (rows[i]..sort((a, b) => a.left.compareTo(b.left)))
           .map((l) => l.text.trim())
-          .where((t) => t.isNotEmpty)
           .join('  '),
-  ].where((r) => r.isNotEmpty).toList();
+  ];
 }
 
 /// 영수증의 품목 한 줄.
@@ -75,10 +130,18 @@ class ReceiptScan {
     this.time,
     this.place,
     this.items = const [],
+    this.unpricedNames = const [],
+    this.fragments = const [],
   });
 
   /// 인식된 글자(줄 단위). "인식된 글자 보기"에 그대로 보여준다.
   final List<String> rows;
+
+  /// 글자 조각과 위치(진단용, "인식된 글자 복사"에 함께 담는다).
+  final List<String> fragments;
+
+  /// 가격 없이 이름(과 수량)만 있는 품목들. 품목 칸에 금액이 없는 영수증(카페 등)용.
+  final List<String> unpricedNames;
 
   /// 결제 금액(할인이 반영된 금액).
   final int? total;
@@ -216,21 +279,59 @@ List<int> _moneyIn(String row) => [
 
 /// 영수증 글자(줄 단위)에서 결제 금액·날짜·시간·구매처·품목을 찾는다.
 /// [today]보다 뒤이거나 1년 넘게 지난 날짜는 잘못 읽은 것으로 보고 버린다.
-ReceiptScan parseReceipt(List<String> rows, {required DateTime today}) {
+///
+/// 결제 금액: 결제 금액을 뜻하는 말 → 영수증에 여러 번 나오는 금액(합계·결제금액·카드 승인
+/// 금액이 같은 숫자로 반복된다) → 품목 합계 → 가장 큰 금액 순.
+/// 가격 없이 이름만 있는 품목이 하나뿐이면 결제 금액을 그 품목 금액으로 쓴다.
+ReceiptScan parseReceipt(
+  List<String> rows, {
+  required DateTime today,
+  List<String> fragments = const [],
+}) {
   final (date, time) = _findDateTime(rows, dateOnly(today));
-  final items = _findItems(rows);
+  var (items, unpriced) = _findItems(rows);
   final total =
       _findTotal(rows) ??
+      _repeatedAmount(rows) ??
       (items.isNotEmpty ? items.fold<int>(0, (s, i) => s + i.amount) : null) ??
       _largestAmount(rows);
+  if (items.isEmpty && unpriced.length == 1 && total != null) {
+    final name = unpriced.single;
+    items = [
+      ReceiptItem(
+        key: itemKeyOf(name),
+        name: cleanItemName(name),
+        amount: total,
+      ),
+    ];
+    unpriced = const [];
+  }
   return ReceiptScan(
     rows: rows,
+    fragments: fragments,
     total: total,
     date: date,
     time: time,
     place: _findPlace(rows),
     items: items,
+    unpricedNames: items.isEmpty
+        ? [for (final n in unpriced) cleanItemName(n)]
+        : const [],
   );
+}
+
+/// 두 번 이상 나오는 금액 중 가장 자주 나오는 것(같으면 큰 것). 100원 미만은 수량일 수 있어 뺀다.
+int? _repeatedAmount(List<String> rows) {
+  final counts = <int, int>{};
+  for (final row in rows) {
+    if (_hasAny(row, _notTotalKeywords)) continue;
+    for (final v in _moneyIn(row)) {
+      if (v >= 100 && v < 10000000) counts[v] = (counts[v] ?? 0) + 1;
+    }
+  }
+  final repeated = counts.entries.where((e) => e.value >= 2).toList()
+    ..sort((a, b) => b.value != a.value ? b.value - a.value : b.key - a.key);
+  return repeated.firstOrNull?.key;
 }
 
 int? _findTotal(List<String> rows) {
@@ -311,11 +412,14 @@ String cleanPlaceName(String s) => s
 
 String? _findPlace(List<String> rows) {
   for (final row in rows) {
-    final m = RegExp(r'(상호|가맹점명|가맹점|매장명|점포명|상\s*호)\s*[:：]?\s*(.+)')
+    // "가맹점번호 : 199432256"처럼 번호를 뜻하는 줄은 상호가 아니다.
+    final m = RegExp(r'(상호|가맹점명|가맹점(?!번호)|매장명|점포명|상\s*호)\s*[:：]?\s*(.+)')
         .firstMatch(row);
     if (m != null) {
       final name = cleanPlaceName(m[2]!.split(RegExp(r'\s{2,}')).first);
-      if (RegExp(r'[가-힣A-Za-z]').hasMatch(name)) return name;
+      final letters = RegExp(r'[가-힣A-Za-z]').allMatches(name).length;
+      final digits = RegExp(r'\d').allMatches(name).length;
+      if (letters >= 2 && digits <= letters) return name;
     }
   }
   for (final row in rows.take(6)) {
@@ -384,7 +488,8 @@ String placeKeyOf(String place) => _compact(cleanPlaceName(place));
 
 bool _hasLetters(String s) => RegExp(r'[가-힣A-Za-z]').hasMatch(s);
 
-List<ReceiptItem> _findItems(List<String> rows) {
+/// 품목(이름 + 금액)과, 가격 없이 이름(과 수량)만 있는 품목 이름들.
+(List<ReceiptItem>, List<String>) _findItems(List<String> rows) {
   var start = rows.indexWhere((r) => _hasAny(r, _headerKeywords));
   var end = rows.length;
   for (var i = (start < 0 ? 0 : start + 1); i < rows.length; i++) {
@@ -407,10 +512,12 @@ List<ReceiptItem> _findItems(List<String> rows) {
   }
 
   final items = <ReceiptItem>[];
+  final unpriced = <String>[];
   String? pendingName;
   for (var i = start + 1; i < end; i++) {
     final row = rows[i];
-    if (_hasAny(row, _notItemKeywords)) {
+    // "주문번호 : …", "카드번호 : …"처럼 쌍점이 있는 줄은 품목이 아니다.
+    if (_hasAny(row, _notItemKeywords) || row.contains(':')) {
       pendingName = null;
       continue;
     }
@@ -422,7 +529,12 @@ List<ReceiptItem> _findItems(List<String> rows) {
     }
     if (!_hasLetters(name) && pendingName != null) name = pendingName;
     pendingName = null;
-    if (!_hasLetters(name) || amount < 10 || amount >= 10000000) continue;
+    if (!_hasLetters(name) || amount < 0 || amount >= 10000000) continue;
+    // 100원 미만은 가격이 아니라 수량으로 본다("아메리카노 HOT  1").
+    if (amount < 100) {
+      unpriced.add(name);
+      continue;
+    }
     items.add(
       ReceiptItem(
         key: itemKeyOf(name),
@@ -431,7 +543,7 @@ List<ReceiptItem> _findItems(List<String> rows) {
       ),
     );
   }
-  return items;
+  return (items, unpriced);
 }
 
 // ── 나눠 저장하기 ──────────────────────────────────────────────────────────
@@ -481,22 +593,29 @@ String receiptMemo(List<ReceiptItem> items) =>
 /// - 카테고리가 하나면 결제 금액([total])을 그대로 쓴다(할인이 이미 반영된 금액).
 /// - 여러 개면 묶음별 품목 합계로 나누고, 결제 금액과의 차이는 금액이 가장 큰
 ///   묶음에서 한 번에 빼거나 더한다(비율로 나누지 않는다).
-/// - 품목이 없으면 [fallbackCategoryId]로 결제 금액 한 건.
+/// - 품목이 없으면 [fallbackCategoryId]로 결제 금액 한 건. 가격 없는 품목 이름
+///   ([unpricedNames])이 있으면 내역은 "첫 이름 외 N건", 메모는 이름 목록.
 /// [categoryOf]는 품목 순서대로의 카테고리 id.
 ReceiptPlan planReceiptEntries({
   required List<ReceiptItem> items,
   required List<int> categoryOf,
   required int total,
   int? fallbackCategoryId,
+  List<String> unpricedNames = const [],
 }) {
   if (items.isEmpty) {
     if (fallbackCategoryId == null) return const ReceiptPlan([]);
+    final names = unpricedNames;
     return ReceiptPlan([
       ReceiptEntryPlan(
         categoryId: fallbackCategoryId,
         amount: total,
-        description: '',
-        memo: '',
+        description: names.isEmpty
+            ? ''
+            : names.length == 1
+            ? names.first
+            : '${names.first} 외 ${names.length - 1}건',
+        memo: names.join(' / '),
       ),
     ]);
   }
