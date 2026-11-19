@@ -221,7 +221,7 @@ void main() {
       expect(find.text('무엇을 초기화할까요?'), findsOneWidget);
       await tap(tester, find.text('내역 데이터 초기화'));
       expect(find.text('내역 데이터를 초기화할까요?'), findsOneWidget);
-      await tap(tester, find.text('초기화하기'));
+      await tap(tester, find.text('백업 없이 초기화'));
 
       expect(find.text('가계부에 오신 걸 환영해요'), findsOneWidget);
       final entries = await tester.runAsync(() => db.select(db.entries).get());
@@ -245,7 +245,7 @@ void main() {
       await tap(tester, find.text('데이터 초기화'));
       await tap(tester, find.text('앱 전체 초기화'));
       expect(find.text('앱 전체를 초기화할까요?'), findsOneWidget);
-      await tap(tester, find.text('초기화하기'));
+      await tap(tester, find.text('백업 없이 초기화'));
 
       expect(find.text('가계부에 오신 걸 환영해요'), findsOneWidget);
       final entries = await tester.runAsync(() => db.select(db.entries).get());

@@ -89,4 +89,30 @@ void main() {
     expect(budget.categoryBudget(1), 150000);
     expect(budget.categoryBudget(2), 50000);
   });
+
+  // 회귀 테스트: 이전 앱은 예산을 카테고리 **이름**으로 찾아 저장해서,
+  // 같은 이름이 생기면 예산을 덮어쓰거나 엉뚱한 카테고리에 붙였다.
+  test('예산은 id로 붙는다: 이름을 바꿔도 남고, 지운 카테고리와 같은 이름으로 새로 만들어도 이어받지 않는다', () async {
+    await db.saveMonthBudget(
+      const MonthBudget(
+        monthKey: '2026-11',
+        mode: BudgetMode.category,
+        categoryAmounts: {1: 200000, 3: 60000},
+      ),
+    );
+
+    await db.updateCategory(1, name: '밥값', icon: '🍚', color: 0);
+    await db.deleteCategory(3);
+    final newCafe = await db.addCategory(
+      kind: EntryKind.expense,
+      name: '카페',
+      icon: '☕',
+      color: 0,
+    );
+
+    final budget = await db.getMonthBudget('2026-11');
+    expect(budget.categoryBudget(1), 200000, reason: '이름을 바꿔도 같은 카테고리');
+    expect(budget.categoryBudget(newCafe), 0, reason: '새 "카페"는 다른 카테고리');
+    expect(budget.categoryAmounts, {1: 200000});
+  });
 }

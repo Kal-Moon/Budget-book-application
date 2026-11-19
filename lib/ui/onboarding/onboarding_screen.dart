@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/budget.dart';
 import '../../domain/categories.dart';
+import '../settings/backup_flow.dart';
 import '../theme.dart';
 import '../widgets/amount_field.dart';
 import '../widgets/confirm_sheet.dart';
@@ -211,7 +212,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(22, 24, 22, 12),
                   child: switch (_step) {
-                    0 => const _WelcomeStep(),
+                    0 => _WelcomeStep(
+                      onRestore: () => startRestoreFlow(context, ref),
+                    ),
                     1 => _ModeStep(
                       mode: _mode,
                       onChanged: (m) => setState(() => _mode = m),
@@ -389,7 +392,10 @@ class _StepTitle extends StatelessWidget {
 }
 
 class _WelcomeStep extends StatelessWidget {
-  const _WelcomeStep();
+  const _WelcomeStep({required this.onRestore});
+
+  /// 폰을 바꿨을 때: 백업 파일로 바로 시작한다.
+  final VoidCallback onRestore;
 
   @override
   Widget build(BuildContext context) {
@@ -438,6 +444,15 @@ class _WelcomeStep extends StatelessWidget {
         feature('🎯', '먼저 예산부터 정하고 지출을 관리해요'),
         feature('📊', '남은 예산을 한눈에 확인할 수 있어요'),
         feature('⚠️', '과소비하면 미리 알려줘요'),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: onRestore,
+          style: TextButton.styleFrom(foregroundColor: c.textSecondary),
+          child: const Text(
+            '백업 파일이 있나요? 백업에서 복원하기 ›',
+            style: TextStyle(fontSize: 12.5),
+          ),
+        ),
       ],
     );
   }

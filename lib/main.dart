@@ -9,6 +9,7 @@ import 'data/settings.dart';
 import 'ui/app_shell.dart';
 import 'ui/lock/lock_controller.dart';
 import 'ui/lock/lock_screen.dart';
+import 'ui/lock/locked_back_blocker.dart';
 import 'ui/onboarding/onboarding_screen.dart';
 import 'ui/theme.dart';
 
@@ -21,21 +22,11 @@ Future<void> main() async {
   );
   // 잠긴 동안 뒤로가기가 잠금 화면 아래의 화면을 닫지 못하게, 앱보다 먼저 등록한다.
   WidgetsBinding.instance.addObserver(
-    _LockedBackBlocker(() => container.read(lockProvider).locked),
+    LockedBackBlocker(() => container.read(lockProvider).locked),
   );
   runApp(
     UncontrolledProviderScope(container: container, child: const GagyebuApp()),
   );
-}
-
-/// 잠겨 있을 때 뒤로가기를 삼킨다(먼저 등록된 관찰자가 처리하면 화면은 닫히지 않는다).
-class _LockedBackBlocker with WidgetsBindingObserver {
-  _LockedBackBlocker(this.isLocked);
-
-  final bool Function() isLocked;
-
-  @override
-  Future<bool> didPopRoute() async => isLocked();
 }
 
 class GagyebuApp extends ConsumerWidget {

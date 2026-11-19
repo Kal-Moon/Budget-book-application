@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
@@ -115,5 +118,31 @@ void main() {
 
   test('없는 카테고리를 가리키는 내역은 저장되지 않는다', () async {
     await expectLater(addEntry('2026-11-01', 999, 1000), throwsA(anything));
+  });
+
+  // 회귀 테스트: 이전 앱은 빈 카테고리 목록을 "데이터 없음"으로 착각해서
+  // 기본 카테고리를 다시 넣었다. 기본값은 처음 만들 때(와 초기화 때)만 넣는다.
+  test('앱을 다시 열 때 기본 카테고리를 다시 넣지 않는다', () async {
+    // 같은 파일을 닫았다가 다시 여는 것이라 "DB를 두 번 만들었다"는 경고는 끈다.
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    addTearDown(
+      () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
+    );
+    final dir = await Directory.systemTemp.createTemp('gagyebu_db_');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/app.sqlite');
+
+    final first = AppDatabase(NativeDatabase(file));
+    await first.updateCategory(1, name: '밥값', icon: '🍚', color: 0);
+    await first.deleteCategory(4);
+    await first.deleteCategory(8);
+    await first.close();
+
+    final reopened = AppDatabase(NativeDatabase(file));
+    addTearDown(reopened.close);
+    final expense = await reopened.watchCategories(EntryKind.expense).first;
+    final income = await reopened.watchCategories(EntryKind.income).first;
+    expect(expense.map((c) => c.name), ['밥값', '교통', '카페']);
+    expect(income.map((c) => c.name), ['월급', '용돈', '부수입']);
   });
 }

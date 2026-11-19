@@ -9,6 +9,7 @@ import '../../domain/budget.dart';
 import '../budget/budget_sheet.dart';
 import '../categories/category_manage_screen.dart';
 import '../import/import_screen.dart';
+import '../settings/backup_flow.dart';
 import '../settings/detail_settings_screen.dart';
 import '../settings/reset_flow.dart';
 import '../settings/settings_widgets.dart';
@@ -117,6 +118,19 @@ class SettingsScreen extends ConsumerWidget {
           SettingsSection(
             title: '데이터',
             children: [
+              SettingsRow(
+                label: '백업 파일 만들기',
+                onTap: () => saveBackup(context, ref),
+              ),
+              SettingsRow(
+                label: '백업에서 복원하기',
+                onTap: () => startRestoreFlow(context, ref),
+              ),
+              const SettingsNote(
+                '앱을 지우거나 폰을 바꾸면 데이터도 함께 사라져요. 백업 파일을 다운로드 폴더나 '
+                '구글 드라이브에 저장해 두면 새 폰에서도 복원할 수 있어요. '
+                '앱 잠금(PIN)은 백업에 들어가지 않아요.',
+              ),
               SettingsRow(
                 label: '다른 가계부에서 가져오기',
                 onTap: () => openImport(context),

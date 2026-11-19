@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,9 @@ import 'package:gagyebu/data/providers.dart';
 import 'package:gagyebu/data/settings.dart';
 import 'package:gagyebu/main.dart';
 import 'package:gagyebu/ui/import/import_screen.dart';
+import 'package:gagyebu/ui/lock/lock_controller.dart';
+import 'package:gagyebu/ui/lock/locked_back_blocker.dart';
+import 'package:gagyebu/ui/settings/backup_flow.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,6 +43,8 @@ Future<AppDatabase> pumpApp(
   MemorySecretStore? secrets,
   FakeBiometricAuth? biometric,
   FakeClock? clock,
+  BackupFileSaver? backupSaver,
+  Uint8List? backupFile,
 }) async {
   SharedPreferences.setMockInitialValues({
     'settings.onboardingDone': onboardingDone,
@@ -65,6 +72,15 @@ Future<AppDatabase> pumpApp(
   });
   if (setup != null) await tester.runAsync(() => setup(db));
 
+  // main()처럼 앱보다 먼저 등록해서, 잠긴 동안의 뒤로가기를 앱보다 먼저 받는다.
+  final backBlocker = LockedBackBlocker(() {
+    final app = find.byType(GagyebuApp).evaluate();
+    if (app.isEmpty) return false;
+    return ProviderScope.containerOf(app.first).read(lockProvider).locked;
+  });
+  tester.binding.addObserver(backBlocker);
+  addTearDown(() => tester.binding.removeObserver(backBlocker));
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -80,6 +96,11 @@ Future<AppDatabase> pumpApp(
         ),
         // 가져오기에서 "파일 선택"을 누르면 이 파일을 고른 것으로 한다.
         importFilePickerProvider.overrideWithValue(() async => importFile),
+        // 백업 저장은 기본으로 "취소", 복원할 파일은 [backupFile](없으면 취소).
+        backupFileSaverProvider.overrideWithValue(
+          backupSaver ?? (_, _) async => false,
+        ),
+        backupFilePickerProvider.overrideWithValue(() async => backupFile),
       ],
       child: const GagyebuApp(),
     ),
