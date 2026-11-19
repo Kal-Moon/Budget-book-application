@@ -63,55 +63,17 @@ class MonthCategoryBudgets extends Table {
   Set<Column> get primaryKey => {monthKey, categoryId};
 }
 
-/// 영수증 기억하기의 종류.
-enum ReceiptMemoryKind {
-  /// 품목: 원래 이름 → 정리한 이름·카테고리.
-  item,
-
-  /// 구매처 → 카테고리.
-  place,
-}
-
-/// 영수증으로 입력할 때 사용자가 고른 이름·카테고리를 기억해 두는 표.
-/// [저장]을 누를 때만 쓰고, 같은 열쇠는 마지막 선택으로 덮어쓴다.
-/// 카테고리는 id로 기억한다(이름으로 찾다가 덮어쓰던 버그 교훈). 카테고리를
-/// 지우면 카테고리만 비우고(이름 기억은 남김), 합치거나 옮기면 함께 옮긴다.
-@DataClassName('ReceiptMemory')
-class ReceiptMemories extends Table {
-  IntColumn get kind => intEnum<ReceiptMemoryKind>()();
-
-  /// 품목은 [itemKeyOf], 구매처는 [placeKeyOf]로 만든 열쇠.
-  TextColumn get key => text()();
-
-  /// 품목의 정리한 이름(구매처는 비어 있다).
-  TextColumn get name => text().withDefault(const Constant(''))();
-  IntColumn get categoryId => integer().nullable().references(
-    Categories,
-    #id,
-    onDelete: KeyAction.setNull,
-  )();
-
-  @override
-  Set<Column> get primaryKey => {kind, key};
-}
-
 @DriftDatabase(
-  tables: [
-    Categories,
-    Entries,
-    MonthBudgets,
-    MonthCategoryBudgets,
-    ReceiptMemories,
-  ],
+  tables: [Categories, Entries, MonthBudgets, MonthCategoryBudgets],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'gagyebu'));
 
   @override
-  /// 1: 처음 버전. 2: 영수증 기억 표 추가(테스트 빌드를 쓰던 폰의 데이터를 지키려고
-  /// 출시 전이지만 마이그레이션을 둔다).
-  int get schemaVersion => 2;
+  /// 1: 처음 버전. 2: 영수증 기억 표 추가. 3: 영수증 입력을 빼면서 그 표를 지움.
+  /// (테스트 빌드를 쓰던 폰의 데이터를 지키려고 출시 전이지만 마이그레이션을 둔다.)
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -120,7 +82,10 @@ class AppDatabase extends _$AppDatabase {
       await _insertDefaultCategories();
     },
     onUpgrade: (m, from, to) async {
-      if (from < 2) await m.createTable(receiptMemories);
+      // 영수증 입력을 뺐다(빌드 30). 2에서 만든 영수증 기억 표가 남아 있으면 지운다.
+      if (from < 3) {
+        await customStatement('DROP TABLE IF EXISTS receipt_memories');
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -311,9 +276,6 @@ class AppDatabase extends _$AppDatabase {
       await (update(entries)..where((e) => e.categoryId.equals(id))).write(
         EntriesCompanion(categoryId: Value(moveTo)),
       );
-      // 영수증 기억도 옮긴다(다음 영수증에서 없어진 카테고리를 고르지 않게).
-      await (update(receiptMemories)..where((r) => r.categoryId.equals(id)))
-          .write(ReceiptMemoriesCompanion(categoryId: Value(moveTo)));
       for (final b in budgets) {
         final target =
             await (select(monthCategoryBudgets)..where(
@@ -474,24 +436,4 @@ class AppDatabase extends _$AppDatabase {
       });
     }
   });
-
-  /// 영수증 기억 전부(표가 작아서 한 번에 읽는다).
-  Future<List<ReceiptMemory>> getReceiptMemories() =>
-      select(receiptMemories).get();
-
-  /// 영수증으로 만든 내역들을 한 번에 저장하고, 고른 이름·카테고리를 기억한다.
-  Future<void> saveReceiptEntries(
-    List<EntriesCompanion> newEntries,
-    List<ReceiptMemoriesCompanion> memories,
-  ) => transaction(() async {
-    for (final e in newEntries) {
-      await into(entries).insert(e);
-    }
-    for (final m in memories) {
-      await into(receiptMemories).insertOnConflictUpdate(m);
-    }
-  });
-
-  /// "영수증 기억 지우기".
-  Future<void> clearReceiptMemories() => delete(receiptMemories).go();
 }

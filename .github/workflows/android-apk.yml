@@ -68,19 +68,6 @@ jobs:
           done
           exit 1
 
-      # R8이 ML Kit 코드를 지우거나 이름을 바꾸면 폰에서 인식기를 만들 때 실패한다(빌드 24·25).
-      # 보존 규칙(proguard-rules.pro)이 적용됐는지 APK 안의 클래스 이름으로 확인한다.
-      - name: 영수증 인식 코드 보존 확인
-        run: |
-          rm -rf /tmp/dex && mkdir /tmp/dex
-          unzip -q -o build/app/outputs/flutter-apk/app-release.apk 'classes*.dex' -d /tmp/dex
-          for c in com/google/mlkit/vision/text/korean/KoreanTextRecognizerOptions \
-                   com/google/mlkit/vision/text/TextRecognition \
-                   com/google/mlkit/common/sdkinternal/MlKitContext; do
-            if cat /tmp/dex/classes*.dex | grep -aq "L$c;"; then echo "있음: $c"
-            else echo "::error::R8이 $c 를 지웠거나 이름을 바꿨어요"; exit 1; fi
-          done
-
       # Play 스토어에 올리는 형식(AAB). 모든 폰 종류를 넣고, 스토어가 폰마다 한 벌만 골라 보낸다.
       # 여기서는 출시 빌드가 되는지와 스토어 다운로드 크기를 확인하는 용도다.
       # (테스트 키로 서명돼 있어 스토어에 그대로 올릴 수는 없다. 업로드 키는 커밋하지 않는다.)

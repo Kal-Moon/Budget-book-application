@@ -31,7 +31,7 @@ android {
     }
 
     // 테스트 APK만 arm64 한 벌로(CI의 APK 빌드 단계가 GAGYEBU_ARM64_ONLY=true를 준다).
-    // --target-platform은 Flutter 엔진만 줄이고 플러그인(영수증 인식·SQLite)의 다른 폰 종류용
+    // --target-platform은 Flutter 엔진만 줄이고 플러그인(SQLite 등)의 다른 폰 종류용
     // 파일은 남긴다. abiFilters는 Flutter 빌드 도구가 기본값(세 종류)과 합쳐서 효과가 없었으므로,
     // APK로 묶는 단계에서 다른 폰 종류 폴더를 직접 뺀다. 출시용 AAB는 모든 폰 종류를 넣어야 하므로 걸지 않는다.
     if (System.getenv("GAGYEBU_ARM64_ONLY") == "true") {
@@ -60,11 +60,6 @@ android {
         }
         release {
             signingConfig = signingConfigs.getByName("dev")
-            // R8(코드 줄이기) 규칙. 영수증 인식 플러그인이 참조하는, 넣지 않은 언어 모델용.
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
         }
     }
 }
@@ -82,7 +77,4 @@ flutter {
 dependencies {
     // 지문·얼굴 인식 창이 쓰는 AppCompat 테마(styles.xml의 Theme.AppCompat.*).
     implementation("androidx.appcompat:appcompat:1.7.0")
-    // 영수증 글자 인식(ML Kit)의 한국어 모델. 폰 안에서만 인식하고 인터넷을 쓰지 않는다.
-    // 플러그인은 기본으로 라틴 문자만 넣으므로 한국어 모델을 따로 넣는다.
-    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 }
