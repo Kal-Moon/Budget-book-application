@@ -69,7 +69,7 @@ void main() {
   testWidgets('백업 파일 만들기: 날짜가 든 이름으로 기록과 설정을 저장한다', (tester) async {
     String? savedName;
     Uint8List? savedBytes;
-    await pumpApp(
+    final db = await pumpApp(
       tester,
       settings: {'mistapProtection': true},
       setup: withData,
@@ -84,7 +84,7 @@ void main() {
 
     expect(find.text('✓ 백업 파일을 저장했어요'), findsOneWidget);
     expect(savedName, 'gagyebu-backup-20261108-1000.json');
-    final backup = parseBackup(savedBytes!, schemaVersion: 1);
+    final backup = parseBackup(savedBytes!, schemaVersion: db.schemaVersion);
     expect(backup.entryCount, 1);
     expect(backup.categoryCount, 8);
     expect(backup.settings['mistapProtection'], true);
@@ -178,7 +178,7 @@ void main() {
       );
       await startReset(tester);
 
-      expect(parseBackup(saved!, schemaVersion: 1).entryCount, 1);
+      expect(parseBackup(saved!, schemaVersion: db.schemaVersion).entryCount, 1);
       expect(find.text('가계부에 오신 걸 환영해요'), findsOneWidget);
       final entries = await tester.runAsync(() => db.select(db.entries).get());
       expect(entries, isEmpty);
