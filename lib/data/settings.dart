@@ -5,6 +5,9 @@ import '../domain/daily_allowance.dart';
 
 enum FontStyleOption { system, gothic, soft }
 
+/// 화면 밝기: 폰 설정 따르기 / 밝게 / 어둡게.
+enum ThemeOption { system, light, dark }
+
 enum FontSizeOption {
   small(15),
   medium(16),
@@ -18,7 +21,7 @@ enum FontSizeOption {
   double get scale => px / 16;
 }
 
-/// 설정 화면에서 고르는 값들. 기본값은 모두 꺼짐/기본.
+/// 설정 화면에서 고르는 값들. 기본값은 모두 꺼짐/기본(화면 테마는 폰 설정 따르기).
 /// "내역 데이터 초기화"에서는 유지되고, "앱 전체 초기화"에서는 지워진다.
 class AppSettings {
   const AppSettings({
@@ -38,6 +41,7 @@ class AppSettings {
     this.alignMonthStats = false,
     this.alignYearStats = false,
     this.dailyAllowance = DailyAllowanceMode.off,
+    this.theme = ThemeOption.system,
   });
 
   final bool onboardingDone;
@@ -69,6 +73,9 @@ class AppSettings {
   /// 홈에 "오늘 쓸 수 있는 돈"을 보여줄지, 어떻게 계산할지.
   final DailyAllowanceMode dailyAllowance;
 
+  /// 화면 테마(다크 모드). 기본은 폰 설정을 따른다.
+  final ThemeOption theme;
+
   AppSettings copyWith({
     bool? onboardingDone,
     bool? autoCopyBudget,
@@ -86,6 +93,7 @@ class AppSettings {
     bool? alignMonthStats,
     bool? alignYearStats,
     DailyAllowanceMode? dailyAllowance,
+    ThemeOption? theme,
   }) => AppSettings(
     onboardingDone: onboardingDone ?? this.onboardingDone,
     autoCopyBudget: autoCopyBudget ?? this.autoCopyBudget,
@@ -104,6 +112,7 @@ class AppSettings {
     alignMonthStats: alignMonthStats ?? this.alignMonthStats,
     alignYearStats: alignYearStats ?? this.alignYearStats,
     dailyAllowance: dailyAllowance ?? this.dailyAllowance,
+    theme: theme ?? this.theme,
   );
 
   Map<String, Object> toJson() => {
@@ -123,6 +132,7 @@ class AppSettings {
     'alignMonthStats': alignMonthStats,
     'alignYearStats': alignYearStats,
     'dailyAllowance': dailyAllowance.name,
+    'theme': theme.name,
   };
 
   /// 저장된 값이 없거나 형식이 맞지 않으면 기본값을 쓴다.
@@ -162,6 +172,7 @@ class AppSettings {
         DailyAllowanceMode.values,
         d.dailyAllowance,
       ),
+      theme: pickEnum('theme', ThemeOption.values, d.theme),
     );
   }
 

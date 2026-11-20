@@ -215,7 +215,7 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
                     ? FontWeight.w700
                     : FontWeight.w400,
                 color: isSel
-                    ? Colors.white
+                    ? c.onAccent
                     : dow == 0
                     ? c.danger
                     : dow == 6
@@ -258,7 +258,7 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
           label,
           style: TextStyle(
             fontSize: 13.5,
-            color: selected ? Colors.white : c.textPrimary,
+            color: selected ? c.onAccent : c.textPrimary,
           ),
         ),
       ),

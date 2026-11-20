@@ -54,7 +54,9 @@ class DonutPane extends ConsumerWidget {
       byCategory[e.categoryId] = (byCategory[e.categoryId] ?? 0) + e.amount;
     }
     final total = expense ? totals.expense : totals.income;
-    final highlight = highlightColorOf(settings.highlightColor);
+    final highlight = context.highlightOf(
+      highlightColorOf(settings.highlightColor),
+    );
     final totalOver =
         expense &&
         withBudget &&
@@ -181,7 +183,7 @@ class DonutPane extends ConsumerWidget {
             ],
             label: '${month.month}월 ${expense ? '지출' : '수입'}',
             total: total,
-            totalColor: totalOver ? Color(highlight.text) : null,
+            totalColor: totalOver ? highlight.text : null,
           ),
         ),
         if (total == 0)
@@ -230,7 +232,7 @@ class _LegendRow extends StatelessWidget {
   final int amount;
   final int total;
   final bool over;
-  final HighlightColor highlight;
+  final HighlightPalette highlight;
   final VoidCallback onTap;
 
   @override
@@ -240,10 +242,10 @@ class _LegendRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: over ? Color(highlight.background) : c.surface2,
+        color: over ? highlight.background : c.surface2,
         shape: RoundedRectangleBorder(
           side: over
-              ? BorderSide(color: Color(highlight.border), width: 0.5)
+              ? BorderSide(color: highlight.border, width: 0.5)
               : BorderSide.none,
           borderRadius: BorderRadius.circular(10),
         ),
@@ -283,14 +285,14 @@ class _LegendRow extends StatelessWidget {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: Color(highlight.text),
+                            color: highlight.badge,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
+                          child: Text(
                             '초과',
                             style: TextStyle(
                               fontSize: 9.5,
-                              color: Colors.white,
+                              color: highlight.onBadge,
                             ),
                           ),
                         ),
@@ -302,7 +304,7 @@ class _LegendRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: over ? Color(highlight.text) : null,
+                    color: over ? highlight.text : null,
                   ),
                 ),
                 SizedBox(

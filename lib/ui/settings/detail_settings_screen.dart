@@ -26,7 +26,7 @@ class DetailSettingsScreen extends ConsumerWidget {
     final s = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final lock = ref.watch(lockProvider);
-    final highlight = highlightColorOf(s.highlightColor);
+    final highlight = context.highlightOf(highlightColorOf(s.highlightColor));
     final calendar = ref.watch(periodCalendarProvider);
     final currentKey = ref.watch(currentMonthKeyProvider);
     final categoryMode =
@@ -67,6 +67,22 @@ class DetailSettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+            ],
+          ),
+          SettingsSection(
+            title: '화면 테마',
+            children: [
+              SettingsChoice<ThemeOption>(
+                items: ThemeOption.values,
+                selected: s.theme,
+                labelOf: (v) => switch (v) {
+                  ThemeOption.system => '폰 설정 따르기',
+                  ThemeOption.light => '밝게',
+                  ThemeOption.dark => '어둡게',
+                },
+                onSelected: (v) => notifier.update((s) => s.copyWith(theme: v)),
+              ),
+              const SettingsNote('"폰 설정 따르기"는 폰의 다크 모드를 켜고 끌 때 앱도 함께 바뀌어요.'),
             ],
           ),
           SettingsSection(
@@ -185,7 +201,7 @@ class DetailSettingsScreen extends ConsumerWidget {
                   for (final h in highlightColors)
                     Semantics(
                       label: '강조색 ${h.key}',
-                      selected: h.key == highlight.key,
+                      selected: h.key == s.highlightColor,
                       button: true,
                       child: GestureDetector(
                         onTap: () => notifier.update(
@@ -198,7 +214,7 @@ class DetailSettingsScreen extends ConsumerWidget {
                             color: Color(h.swatch),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: h.key == highlight.key
+                              color: h.key == s.highlightColor
                                   ? context.colors.textPrimary
                                   : Colors.transparent,
                               width: 2.5,
@@ -217,11 +233,8 @@ class DetailSettingsScreen extends ConsumerWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Color(highlight.background),
-                  border: Border.all(
-                    color: Color(highlight.border),
-                    width: 0.5,
-                  ),
+                  color: highlight.background,
+                  border: Border.all(color: highlight.border, width: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -236,12 +249,15 @@ class DetailSettingsScreen extends ConsumerWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: Color(highlight.text),
+                        color: highlight.badge,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
+                      child: Text(
                         '초과',
-                        style: TextStyle(fontSize: 9.5, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: highlight.onBadge,
+                        ),
                       ),
                     ),
                     const Spacer(),
@@ -250,7 +266,7 @@ class DetailSettingsScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(highlight.text),
+                        color: highlight.text,
                       ),
                     ),
                   ],

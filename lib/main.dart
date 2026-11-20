@@ -35,6 +35,7 @@ class GagyebuApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fontSize = ref.watch(settingsProvider.select((s) => s.fontSize));
+    final theme = ref.watch(settingsProvider.select((s) => s.theme));
     final onboardingDone = ref.watch(
       settingsProvider.select((s) => s.onboardingDone),
     );
@@ -42,6 +43,12 @@ class GagyebuApp extends ConsumerWidget {
       title: '가계부',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      darkTheme: buildTheme(brightness: Brightness.dark),
+      themeMode: switch (theme) {
+        ThemeOption.system => ThemeMode.system,
+        ThemeOption.light => ThemeMode.light,
+        ThemeOption.dark => ThemeMode.dark,
+      },
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

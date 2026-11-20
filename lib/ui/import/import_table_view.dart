@@ -82,14 +82,14 @@ class ImportTableView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: role == null ? c.textMuted : c.surface0,
+                        color: role == null ? c.textMuted : c.onAccent,
                       ),
                     ),
                   ),
                   Icon(
                     Icons.arrow_drop_down,
                     size: 16,
-                    color: role == null ? c.textMuted : c.surface0,
+                    color: role == null ? c.textMuted : c.onAccent,
                   ),
                 ],
               ),
@@ -115,7 +115,7 @@ class ImportTableView extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isHeader ? c.surface0 : c.textMuted,
+                  color: isHeader ? c.onAccent : c.textMuted,
                 ),
               ),
             ),
