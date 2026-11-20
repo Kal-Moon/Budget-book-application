@@ -247,7 +247,7 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
   /// 저장하면 그 달 예산을 넘게 되는지(지출만).
   String? _warning() {
     if (_kind != EntryKind.expense || _categoryId == null) return null;
-    final monthKey = monthKeyOf(_date);
+    final monthKey = ref.watch(periodCalendarProvider).keyOf(_date);
     final entries = ref.watch(monthEntriesProvider(monthKey)).value;
     final budget = ref.watch(monthBudgetProvider(monthKey)).value;
     final category = ref.watch(categoryMapProvider).value?[_categoryId];
@@ -257,7 +257,7 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     );
     final byCategory = budget.mode == BudgetMode.category;
     return budgetWarning(
-      label: byCategory ? category.name : '${_date.month}월',
+      label: byCategory ? category.name : '${monthStartOf(monthKey).month}월',
       spentBefore: byCategory
           ? EntryTotals(others).spentIn(category.id)
           : EntryTotals(others).expense,

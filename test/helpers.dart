@@ -1,10 +1,14 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/core/clock.dart';
+import 'package:gagyebu/data/settings.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/data/lock_store.dart';
 import 'package:gagyebu/domain/budget.dart';
 import 'package:gagyebu/domain/lock.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 정해진 시각을 돌려주는 테스트용 시계. [now]를 바꿔 날짜 변경을 흉내 낸다.
 class FakeClock implements Clock {
@@ -14,6 +18,27 @@ class FakeClock implements Clock {
 
   @override
   DateTime now() => current;
+}
+
+/// 가짜 시계와 설정 저장소를 넣은 컨테이너(화면 없이 프로바이더만 확인할 때).
+/// [settings]는 'settings.' 접두어를 뺀 이름 → 값.
+Future<ProviderContainer> clockContainer(
+  FakeClock clock, {
+  Map<String, Object> settings = const {},
+}) async {
+  SharedPreferences.setMockInitialValues({
+    for (final MapEntry(:key, :value) in settings.entries)
+      'settings.$key': value,
+  });
+  final prefs = await SharedPreferences.getInstance();
+  final container = ProviderContainer(
+    overrides: [
+      clockProvider.overrideWithValue(clock),
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
 }
 
 AppDatabase memoryDatabase() => AppDatabase(

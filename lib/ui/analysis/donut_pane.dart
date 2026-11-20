@@ -25,7 +25,11 @@ class DonutPane extends ConsumerWidget {
     final view = ref.watch(analysisViewProvider);
     final notifier = ref.read(analysisViewProvider.notifier);
     final settings = ref.watch(settingsProvider);
-    final entries = ref.watch(monthEntriesProvider(view.monthKey)).value;
+    final statsCalendar = ref.watch(monthStatsCalendarProvider);
+    final periods = ref.watch(periodCalendarProvider);
+    final entries = ref
+        .watch(rangeEntriesProvider(statsCalendar.rangeOf(view.monthKey)))
+        .value;
     final budget = ref.watch(monthBudgetProvider(view.monthKey)).value;
     final categories = ref.watch(categoriesProvider(view.kind)).value;
     if (entries == null || budget == null || categories == null) {
@@ -33,7 +37,15 @@ class DonutPane extends ConsumerWidget {
     }
 
     final month = monthStartOf(view.monthKey);
-    final isCurrent = view.monthKey == ref.watch(currentMonthKeyProvider);
+    final isCurrent =
+        view.monthKey == statsCalendar.keyOf(ref.watch(todayProvider));
+    // 통계 기간이 예산 기간과 다르면(월간 통계를 시작일에 맞추지 않음) 예산과 비교하지 않는다.
+    final withBudget = sameAsBudgetPeriod(
+      statsCalendar,
+      periods,
+      view.monthKey,
+    );
+    final basis = monthStatsBasis(statsCalendar, periods, view.monthKey);
     final expense = view.kind == EntryKind.expense;
     final totals = EntryTotals(entries);
     final ofKind = entries.where((e) => e.kind == view.kind).toList();
@@ -45,6 +57,7 @@ class DonutPane extends ConsumerWidget {
     final highlight = highlightColorOf(settings.highlightColor);
     final totalOver =
         expense &&
+        withBudget &&
         highlightMonthTotal(
           budget: budget,
           spent: totals.expense,
@@ -118,26 +131,43 @@ class DonutPane extends ConsumerWidget {
           ),
         if (settings.showAnalysisIncome)
           AnalysisIncomeStrip(income: totals.income, expense: totals.expense),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            children: [
-              Text(
-                '${month.month}월 예산 방식',
-                style: TextStyle(fontSize: 12, color: c.textSecondary),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                budget.isSet ? budget.mode.label : '아직 정하지 않음',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: c.accent,
-                ),
-              ),
-            ],
+        if (basis != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              basis,
+              style: TextStyle(fontSize: 11.5, color: c.textMuted),
+            ),
           ),
-        ),
+        if (!withBudget)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              '예산 비교는 홈에서 볼 수 있어요',
+              style: TextStyle(fontSize: 12, color: c.textSecondary),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Text(
+                  '${month.month}월 예산 방식',
+                  style: TextStyle(fontSize: 12, color: c.textSecondary),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  budget.isSet ? budget.mode.label : '아직 정하지 않음',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: c.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ChoiceChipRow<EntryKind>(
           items: EntryKind.values,
           selected: view.kind,
@@ -174,6 +204,7 @@ class DonutPane extends ConsumerWidget {
             total: total,
             over:
                 expense &&
+                withBudget &&
                 budget.mode == BudgetMode.category &&
                 isOverBudget(
                   byCategory[cat.id] ?? 0,

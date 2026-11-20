@@ -34,7 +34,10 @@ class HomeView {
 
 class HomeViewNotifier extends Notifier<HomeView> {
   @override
-  HomeView build() => HomeView(monthKey: monthKeyOf(ref.watch(todayProvider)));
+  // 날짜가 바뀔 때마다(같은 달 안이라도) 이번 달로 돌아간다.
+  HomeView build() => HomeView(
+    monthKey: ref.watch(periodCalendarProvider).keyOf(ref.watch(todayProvider)),
+  );
 
   void showMonth(String monthKey) => state = HomeView(
     monthKey: monthKey,
@@ -43,7 +46,7 @@ class HomeViewNotifier extends Notifier<HomeView> {
   );
 
   void showDay(String date) => state = HomeView(
-    monthKey: date.substring(0, 7),
+    monthKey: ref.read(periodCalendarProvider).keyOfDate(date),
     selectedDate: date,
     type: state.type,
     categoryId: state.categoryId,

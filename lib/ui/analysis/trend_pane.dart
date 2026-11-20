@@ -35,13 +35,22 @@ class TrendPane extends ConsumerWidget {
     }
 
     // 추이는 항상 이번 달에서 끝난다(홈이나 도넛에서 보던 달과 무관).
+    final statsCalendar = ref.watch(monthStatsCalendarProvider);
+    final periods = ref.watch(periodCalendarProvider);
+    final current = statsCalendar.keyOf(ref.watch(todayProvider));
     final months = monthlyExpenseTotals(
       entries,
-      ref.watch(currentMonthKeyProvider),
+      current,
       view.range,
+      calendar: statsCalendar,
     );
     final stats = TrendStats(months);
-    int budgetOf(String key) => budgets[key]?.totalBudget ?? 0;
+    // 통계 기간이 예산 기간과 다른 달은 예산과 비교하지 않는다.
+    bool comparable(String key) =>
+        sameAsBudgetPeriod(statsCalendar, periods, key);
+    final basis = monthStatsBasis(statsCalendar, periods, current);
+    int budgetOf(String key) =>
+        comparable(key) ? budgets[key]?.totalBudget ?? 0 : 0;
     bool overIn(MonthTotal m) =>
         isOverBudget(m.total, budgetOf(m.monthKey), threshold);
     final maxValue = months.fold(
@@ -58,6 +67,16 @@ class TrendPane extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
       children: [
+        if (basis != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              months.every((m) => comparable(m.monthKey))
+                  ? basis
+                  : '$basis · 예산 비교는 홈에서 볼 수 있어요',
+              style: TextStyle(fontSize: 11.5, color: c.textMuted),
+            ),
+          ),
         ChoiceChipRow<int>(
           items: const [3, 6, 12],
           selected: view.range,

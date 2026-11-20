@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/dates.dart';
 import '../../core/today.dart';
 import '../../data/providers.dart';
+import '../../domain/period.dart';
 import '../theme.dart';
 import 'home_view.dart';
 
@@ -100,8 +101,16 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
   );
 
   Widget _dayPanel(AppColors c) {
-    final monthKey = monthKeyOf(_month);
-    final entries = ref.watch(monthEntriesProvider(monthKey)).value ?? [];
+    // 달력 한 장(1일~말일)에 내역이 있는 날을 표시한다(한 달 시작일과 무관).
+    final entries =
+        ref
+            .watch(
+              rangeEntriesProvider(
+                PeriodCalendar.calendar.rangeOf(monthKeyOf(_month)),
+              ),
+            )
+            .value ??
+        [];
     final withEntries = entries.map((e) => e.date).toSet();
     final today = dateKeyOf(ref.watch(todayProvider));
     final selected = ref.watch(homeViewProvider).selectedDate;

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/settings.dart';
+import '../domain/period.dart';
 import 'clock.dart';
 import 'dates.dart';
 
@@ -23,9 +25,16 @@ final todayProvider = NotifierProvider<TodayNotifier, DateTime>(
   TodayNotifier.new,
 );
 
-/// 이번 달 키('YYYY-MM'). 오늘이 바뀌면 함께 바뀐다.
+/// 날짜를 "한 달"(기간)로 나누는 규칙. 세부 설정의 한 달 시작일을 따른다.
+final periodCalendarProvider = Provider<PeriodCalendar>(
+  (ref) => PeriodCalendar.decode(
+    ref.watch(settingsProvider.select((s) => s.monthStartChanges)),
+  ),
+);
+
+/// 이번 달(오늘이 속한 기간)의 키('YYYY-MM'). 오늘이나 시작일이 바뀌면 함께 바뀐다.
 final currentMonthKeyProvider = Provider<String>(
-  (ref) => monthKeyOf(ref.watch(todayProvider)),
+  (ref) => ref.watch(periodCalendarProvider).keyOf(ref.watch(todayProvider)),
 );
 
 /// 앱이 다시 화면에 나올 때와 자정이 지날 때 날짜 변경을 확인한다.

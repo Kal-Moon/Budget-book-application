@@ -32,6 +32,9 @@ class AppSettings {
     this.highlightColor = 'red',
     this.totalHighlightInCategoryMode = false,
     this.budgetPromptMonth = '',
+    this.monthStartChanges = '',
+    this.alignMonthStats = false,
+    this.alignYearStats = false,
   });
 
   final bool onboardingDone;
@@ -51,6 +54,15 @@ class AppSettings {
   /// 새 달 예산 팝업을 마지막으로 처리한 달('YYYY-MM'). 같은 달에 다시 묻지 않는다.
   final String budgetPromptMonth;
 
+  /// 한 달 시작일을 바꾼 기록(`PeriodCalendar.encode`). 비어 있으면 1일~말일.
+  final String monthStartChanges;
+
+  /// 분석의 원 그래프·월별 추이를 한 달 시작일에 맞출지(끄면 달력 기준).
+  final bool alignMonthStats;
+
+  /// 분석의 연간 통계를 한 달 시작일에 맞출지(끄면 1.1~12.31).
+  final bool alignYearStats;
+
   AppSettings copyWith({
     bool? onboardingDone,
     bool? autoCopyBudget,
@@ -64,6 +76,9 @@ class AppSettings {
     String? highlightColor,
     bool? totalHighlightInCategoryMode,
     String? budgetPromptMonth,
+    String? monthStartChanges,
+    bool? alignMonthStats,
+    bool? alignYearStats,
   }) => AppSettings(
     onboardingDone: onboardingDone ?? this.onboardingDone,
     autoCopyBudget: autoCopyBudget ?? this.autoCopyBudget,
@@ -78,6 +93,9 @@ class AppSettings {
     totalHighlightInCategoryMode:
         totalHighlightInCategoryMode ?? this.totalHighlightInCategoryMode,
     budgetPromptMonth: budgetPromptMonth ?? this.budgetPromptMonth,
+    monthStartChanges: monthStartChanges ?? this.monthStartChanges,
+    alignMonthStats: alignMonthStats ?? this.alignMonthStats,
+    alignYearStats: alignYearStats ?? this.alignYearStats,
   );
 
   Map<String, Object> toJson() => {
@@ -93,6 +111,9 @@ class AppSettings {
     'highlightColor': highlightColor,
     'totalHighlightInCategoryMode': totalHighlightInCategoryMode,
     'budgetPromptMonth': budgetPromptMonth,
+    'monthStartChanges': monthStartChanges,
+    'alignMonthStats': alignMonthStats,
+    'alignYearStats': alignYearStats,
   };
 
   /// 저장된 값이 없거나 형식이 맞지 않으면 기본값을 쓴다.
@@ -124,6 +145,9 @@ class AppSettings {
         d.totalHighlightInCategoryMode,
       ),
       budgetPromptMonth: pick('budgetPromptMonth', d.budgetPromptMonth),
+      monthStartChanges: pick('monthStartChanges', d.monthStartChanges),
+      alignMonthStats: pick('alignMonthStats', d.alignMonthStats),
+      alignYearStats: pick('alignYearStats', d.alignYearStats),
     );
   }
 

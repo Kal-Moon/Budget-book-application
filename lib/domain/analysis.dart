@@ -1,6 +1,7 @@
 import '../core/dates.dart';
 import '../data/database.dart';
 import 'budget.dart';
+import 'period.dart';
 
 /// 한 달의 지출 합계(월별 추이의 한 점).
 class MonthTotal {
@@ -17,15 +18,18 @@ class MonthTotal {
 }
 
 /// [endMonthKey]에서 끝나는 최근 [count]개월의 지출 합계(오래된 달부터).
+/// 달은 [calendar]로 나눈다(기본은 1일~말일).
 List<MonthTotal> monthlyExpenseTotals(
   Iterable<Entry> entries,
   String endMonthKey,
-  int count,
-) {
+  int count, {
+  PeriodCalendar? calendar,
+}) {
+  final cal = calendar ?? PeriodCalendar.calendar;
   final sums = <String, int>{};
   for (final e in entries) {
     if (e.kind != EntryKind.expense) continue;
-    final key = e.date.substring(0, 7);
+    final key = cal.keyOfDate(e.date);
     sums[key] = (sums[key] ?? 0) + e.amount;
   }
   return [
@@ -69,20 +73,30 @@ String percentChange(int from, int to) {
   return '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}%';
 }
 
-/// 한 해의 지출 통계.
+/// 한 해의 지출 통계. 해와 달은 [calendar]로 나눈다(기본은 1.1~12.31, 1일~말일).
+/// 시작일에 맞추면 2026년 = 2026년 1월 기간 첫날 ~ 2027년 1월 기간 첫날의 전날.
 class YearStats {
-  YearStats(Iterable<Entry> entries, this.year, DateTime today) {
+  YearStats(
+    Iterable<Entry> entries,
+    this.year,
+    DateTime today, {
+    PeriodCalendar? calendar,
+  }) {
+    final cal = calendar ?? PeriodCalendar.calendar;
+    final range = cal.yearRange(year);
     for (final e in entries) {
-      if (e.kind != EntryKind.expense || !e.date.startsWith('$year-')) continue;
+      if (e.kind != EntryKind.expense || !range.contains(e.date)) continue;
       total += e.amount;
-      final month = int.parse(e.date.substring(5, 7));
+      final month = int.parse(cal.keyOfDate(e.date).substring(5, 7));
       (byCategory[e.categoryId] ??= List.filled(12, 0))[month - 1] += e.amount;
     }
     // 올해는 지금까지 지난 달 수로, 지난 해는 12로 나눈다(아직 오지 않은 해는 0).
-    final months = year < today.year
+    final now = cal.keyOf(today);
+    final nowYear = int.parse(now.substring(0, 4));
+    final months = year < nowYear
         ? 12
-        : year == today.year
-        ? today.month
+        : year == nowYear
+        ? int.parse(now.substring(5, 7))
         : 0;
     monthlyAverage = months == 0 ? 0 : (total / months).round();
   }

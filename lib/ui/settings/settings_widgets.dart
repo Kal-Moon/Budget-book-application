@@ -109,12 +109,14 @@ class SettingsToggle extends StatelessWidget {
   final String label;
   final String? description;
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// null이면 흐리게 보이고 누를 수 없다.
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
+    final toggle = Container(
       margin: const EdgeInsets.only(bottom: 9),
       padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
       decoration: BoxDecoration(
@@ -148,6 +150,7 @@ class SettingsToggle extends StatelessWidget {
         ],
       ),
     );
+    return onChanged == null ? Opacity(opacity: 0.45, child: toggle) : toggle;
   }
 }
 

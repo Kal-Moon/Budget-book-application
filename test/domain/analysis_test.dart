@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/domain/analysis.dart';
 import 'package:gagyebu/domain/budget.dart';
+import 'package:gagyebu/domain/period.dart';
 
 import 'summary_test.dart' show entry;
 
@@ -30,6 +31,31 @@ void main() {
     final months = monthlyExpenseTotals(entries, '2026-01', 3);
     expect(months.map((m) => m.monthKey), ['2025-11', '2025-12', '2026-01']);
     expect(months[1].total, 120000);
+  });
+
+  group('한 달 시작일 10일에 맞추면', () {
+    final ten = PeriodCalendar([const MonthStartChange('2025-01', 10)]);
+
+    test('월별 합계는 기간으로 나눈다', () {
+      // 10/10·10/11은 10월 기간, 11/1·11/3은 10월 기간(10.10 ~ 11.9), 8/1은 7월 기간.
+      final months = monthlyExpenseTotals(entries, '2026-11', 5, calendar: ten);
+      expect(months.map((m) => m.total), [20000, 0, 0, 90000, 0]);
+    });
+
+    test('연간 통계는 1월 기간 첫날 ~ 다음 해 1월 기간 첫날의 전날', () {
+      final list = [
+        ...entries,
+        entry(7, date: '2027-01-09', categoryId: 1, amount: 7000),
+        entry(8, date: '2026-01-09', categoryId: 1, amount: 3000),
+      ];
+      final stats = YearStats(list, 2026, DateTime(2027, 1, 5), calendar: ten);
+      // 2026-01-09는 2025년 12월 기간, 2027-01-09는 2026년 12월 기간.
+      expect(stats.total, 30000 + 50000 + 10000 + 20000 + 7000);
+      expect(stats.byCategory[1]![11], 7000);
+      expect(stats.byCategory[1]![9], 30000 + 50000);
+      // 2027-01-05는 아직 2026년 12월 기간이라 올해는 12개월로 나눈다.
+      expect(stats.monthlyAverage, (117000 / 12).round());
+    });
   });
 
   test('추이 요약: 평균, 전월 대비, 최고 지출월', () {

@@ -167,7 +167,12 @@ class _MonthBody extends ConsumerWidget {
     final today = ref.watch(todayProvider);
     final notifier = ref.read(homeViewProvider.notifier);
     final month = monthStartOf(view.monthKey).month;
-    final isCurrentMonth = view.monthKey == monthKeyOf(today);
+    final isCurrentMonth = view.monthKey == ref.watch(currentMonthKeyProvider);
+    final calendar = ref.watch(periodCalendarProvider);
+    // 시작일이 1일이 아니면 기간의 실제 날짜를 함께 보여준다.
+    final periodLabel = calendar.isPlainMonth(view.monthKey)
+        ? null
+        : calendar.rangeLabel(view.monthKey);
 
     // 필터로 고른 카테고리가 그사이 삭제됐으면 필터를 푼 것으로 본다.
     final categoryFilter = categories.containsKey(view.categoryId)
@@ -225,6 +230,7 @@ class _MonthBody extends ConsumerWidget {
                 spentShown: view.selectedDate == null
                     ? monthTotals.expense
                     : EntryTotals(dayEntries).expense,
+                periodLabel: view.selectedDate == null ? periodLabel : null,
                 monthSpent: monthTotals.expense,
                 budget: budget.totalBudget,
                 threshold: settings.budgetThreshold,

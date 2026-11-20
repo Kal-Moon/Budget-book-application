@@ -28,7 +28,19 @@ class YearPane extends ConsumerWidget {
     if (entries == null || categories == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    final stats = YearStats(entries, year, ref.watch(todayProvider));
+    final calendar = ref.watch(yearStatsCalendarProvider);
+    final stats = YearStats(
+      entries,
+      year,
+      ref.watch(todayProvider),
+      calendar: calendar,
+    );
+    // 한 달 시작일을 쓰고 있으면 어떤 기준으로 나눴는지 보여준다.
+    final basis = ref.watch(periodCalendarProvider).isCalendar
+        ? null
+        : calendar.isCalendar
+        ? '달력 기준 · ${calendar.yearRangeLabel(year)}'
+        : '${calendar.yearRangeLabel(year)} 기준';
     final ranked =
         categories.where((cat) => stats.categoryTotal(cat.id) > 0).toList()
           ..sort(
@@ -79,6 +91,12 @@ class YearPane extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
       children: [
+        if (basis != null)
+          Text(
+            basis,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, color: c.textMuted),
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

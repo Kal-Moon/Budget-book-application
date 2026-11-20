@@ -33,12 +33,12 @@ void main() {
     expect(income.map((c) => c.name), ['월급', '용돈', '부수입', '금융수입']);
   });
 
-  test('한 달 내역은 그 달 것만, 최신순으로 나온다', () async {
+  test('날짜 범위의 내역은 그 범위 것만, 최신순으로 나온다', () async {
     await addEntry('2026-10-31', 1, 1000);
     await addEntry('2026-11-01', 1, 2000);
     await addEntry('2026-11-05', 2, 3000);
 
-    final nov = await db.watchMonthEntries('2026-11').first;
+    final nov = await db.watchEntriesBetween('2026-11-01', '2026-11-30').first;
     expect(nov.map((e) => e.amount), [3000, 2000]);
   });
 

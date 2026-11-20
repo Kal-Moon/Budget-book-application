@@ -178,7 +178,10 @@ void main() {
       );
       await startReset(tester);
 
-      expect(parseBackup(saved!, schemaVersion: db.schemaVersion).entryCount, 1);
+      expect(
+        parseBackup(saved!, schemaVersion: db.schemaVersion).entryCount,
+        1,
+      );
       expect(find.text('가계부에 오신 걸 환영해요'), findsOneWidget);
       final entries = await tester.runAsync(() => db.select(db.entries).get());
       expect(entries, isEmpty);

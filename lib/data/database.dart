@@ -185,10 +185,11 @@ class AppDatabase extends _$AppDatabase {
   /// 모든 내역(전체 기간 검색용).
   Stream<List<Entry>> watchAllEntries() => select(entries).watch();
 
-  /// 한 달의 내역. 날짜·시간 최신순.
-  Stream<List<Entry>> watchMonthEntries(String monthKey) =>
+  /// 날짜 범위(양 끝 포함)의 내역. 날짜·시간 최신순.
+  /// 한 달(기간)의 내역은 `PeriodCalendar.rangeOf`로 범위를 구해 읽는다.
+  Stream<List<Entry>> watchEntriesBetween(String start, String end) =>
       (select(entries)
-            ..where((e) => e.date.like('$monthKey-%'))
+            ..where((e) => e.date.isBetweenValues(start, end))
             ..orderBy([
               (e) => OrderingTerm.desc(e.date),
               (e) => OrderingTerm.desc(e.time),

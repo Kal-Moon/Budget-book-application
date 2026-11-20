@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/dates.dart';
 import '../../core/today.dart';
 import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/analysis.dart';
 import '../../domain/budget.dart';
+import '../../domain/period.dart';
 import '../lock/lock_controller.dart';
 import '../lock/lock_setup.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
+import 'month_start_flow.dart';
 import 'settings_widgets.dart';
 
-/// 세부 설정: 실수 방지, 글자 크기, 예산 초과 미리 알림, 분석 강조색, 앱 잠금. 기본값은 모두 꺼짐/기본.
+/// 세부 설정: 실수 방지, 글자 크기, 한 달 시작일, 예산 초과 미리 알림, 분석 강조색, 앱 잠금. 기본값은 모두 꺼짐/기본.
 class DetailSettingsScreen extends ConsumerWidget {
   const DetailSettingsScreen({super.key});
 
@@ -22,6 +25,8 @@ class DetailSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(settingsProvider.notifier);
     final lock = ref.watch(lockProvider);
     final highlight = highlightColorOf(s.highlightColor);
+    final calendar = ref.watch(periodCalendarProvider);
+    final currentKey = ref.watch(currentMonthKeyProvider);
     final categoryMode =
         ref
             .watch(monthBudgetProvider(ref.watch(currentMonthKeyProvider)))
@@ -75,6 +80,42 @@ class DetailSettingsScreen extends ConsumerWidget {
                 },
                 onSelected: (f) =>
                     notifier.update((s) => s.copyWith(fontSize: f)),
+              ),
+            ],
+          ),
+          SettingsSection(
+            title: '한 달 시작일',
+            children: [
+              SettingsRow(
+                label: '시작일',
+                value: monthStartDayLabel(calendar.chosenDay),
+                onTap: () => changeMonthStart(context, ref),
+              ),
+              SettingsNote(
+                calendar.isPlainMonth(currentKey)
+                    ? '월급날에 맞춰 한 달을 나눌 수 있어요. 바꾸면 다음 기간부터 적용되고 지난 기간은 그대로예요.'
+                    : '이번 ${monthStartOf(currentKey).month}월: '
+                          '${calendar.rangeLabel(currentKey)}. '
+                          '바꾸면 다음 기간부터 적용되고 지난 기간은 그대로예요.',
+              ),
+              SettingsToggle(
+                label: '월간 통계도 시작일에 맞추기',
+                description: '분석의 카테고리 비중·월별 추이를 시작일 기준으로 나눠요. 끄면 1일~말일 기준이고, 예산 비교는 홈에서 볼 수 있어요',
+                value: s.alignMonthStats,
+                onChanged: calendar.isCalendar
+                    ? null
+                    : (v) => notifier.update(
+                        (s) => s.copyWith(alignMonthStats: v),
+                      ),
+              ),
+              SettingsToggle(
+                label: '연간 통계도 시작일에 맞추기',
+                description: '연간 통계를 시작일 기준으로 나눠요. 끄면 1월 1일~12월 31일 기준이에요',
+                value: s.alignYearStats,
+                onChanged: calendar.isCalendar
+                    ? null
+                    : (v) =>
+                          notifier.update((s) => s.copyWith(alignYearStats: v)),
               ),
             ],
           ),

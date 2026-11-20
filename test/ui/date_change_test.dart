@@ -102,9 +102,7 @@ void main() {
     expect(nov.totalBudget, 500000);
   });
 
-  testWidgets('다음 달에 앱으로 돌아오면 자동 적용이 꺼져 있으면 새 달 예산을 묻는다', (
-    tester,
-  ) async {
+  testWidgets('다음 달에 앱으로 돌아오면 자동 적용이 꺼져 있으면 새 달 예산을 묻는다', (tester) async {
     final clock = FakeClock(DateTime(2026, 10, 31, 23, 59));
     await pumpApp(
       tester,

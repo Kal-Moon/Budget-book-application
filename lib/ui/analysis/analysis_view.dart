@@ -1,8 +1,44 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/dates.dart';
 import '../../core/today.dart';
+import '../../data/settings.dart';
 import '../../domain/budget.dart';
+import '../../domain/period.dart';
+
+/// 원 그래프·월별 추이가 달을 나누는 기준. 세부 설정에서 "월간 통계도 시작일에
+/// 맞추기"를 켜면 한 달 시작일, 끄면 달력(1일~말일).
+final monthStatsCalendarProvider = Provider<PeriodCalendar>(
+  (ref) => ref.watch(settingsProvider.select((s) => s.alignMonthStats))
+      ? ref.watch(periodCalendarProvider)
+      : PeriodCalendar.calendar,
+);
+
+/// 연간 통계가 해와 달을 나누는 기준("연간 통계도 시작일에 맞추기").
+final yearStatsCalendarProvider = Provider<PeriodCalendar>(
+  (ref) => ref.watch(settingsProvider.select((s) => s.alignYearStats))
+      ? ref.watch(periodCalendarProvider)
+      : PeriodCalendar.calendar,
+);
+
+/// 통계의 [key] 달이 예산의 기간과 같은 날짜 범위인지. 다르면 예산과 비교할 수 없어
+/// 초과 표시를 하지 않는다(예산은 한 달 시작일 기준으로 정한 것이라서).
+bool sameAsBudgetPeriod(
+  PeriodCalendar stats,
+  PeriodCalendar budgets,
+  String key,
+) => stats.rangeOf(key) == budgets.rangeOf(key);
+
+/// 한 달 시작일을 쓰고 있을 때 월간 통계 위에 보여줄 기준 문구. 1일 시작이면 null.
+String? monthStatsBasis(
+  PeriodCalendar stats,
+  PeriodCalendar budgets,
+  String key,
+) {
+  if (budgets.isCalendar) return null;
+  return stats.isCalendar
+      ? '달력 기준 · ${stats.rangeLabel(key)}'
+      : '${stats.rangeLabel(key)} 기준';
+}
 
 enum AnalysisTab { donut, trend, year }
 
@@ -49,7 +85,11 @@ class AnalysisViewNotifier extends Notifier<AnalysisView> {
   @override
   AnalysisView build() {
     final today = ref.watch(todayProvider);
-    return AnalysisView(monthKey: monthKeyOf(today), year: today.year);
+    final yearKey = ref.watch(yearStatsCalendarProvider).keyOf(today);
+    return AnalysisView(
+      monthKey: ref.watch(monthStatsCalendarProvider).keyOf(today),
+      year: int.parse(yearKey.substring(0, 4)),
+    );
   }
 
   void setTab(AnalysisTab tab) => state = state.copyWith(tab: tab);
@@ -65,7 +105,9 @@ class AnalysisViewNotifier extends Notifier<AnalysisView> {
       state = state.copyWith(tab: AnalysisTab.donut, monthKey: monthKey);
 
   /// 이번 달 카테고리 비중으로(홈의 비율 막대·칩을 눌렀을 때 포함).
-  void showCurrentMonth() => showMonth(ref.read(currentMonthKeyProvider));
+  void showCurrentMonth() => showMonth(
+    ref.read(monthStatsCalendarProvider).keyOf(ref.read(todayProvider)),
+  );
 }
 
 final analysisViewProvider =

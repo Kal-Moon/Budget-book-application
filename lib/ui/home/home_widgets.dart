@@ -47,6 +47,7 @@ class SummaryCard extends StatelessWidget {
     super.key,
     required this.spentLabel,
     required this.spentShown,
+    this.periodLabel,
     required this.monthSpent,
     required this.budget,
     required this.threshold,
@@ -54,6 +55,9 @@ class SummaryCard extends StatelessWidget {
 
   /// '11월 지출' 또는 '선택한 날 지출'
   final String spentLabel;
+
+  /// 시작일이 1일이 아닐 때 기간의 날짜 범위('11.10 ~ 12.9').
+  final String? periodLabel;
 
   /// 왼쪽에 보여줄 지출(하루를 보고 있으면 그날 지출).
   final int spentShown;
@@ -85,6 +89,8 @@ class SummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(spentLabel, style: labelStyle),
+                    if (periodLabel case final range?)
+                      Text(range, style: labelStyle.copyWith(fontSize: 10.5)),
                     const SizedBox(height: 4),
                     Text(formatWon(spentShown), style: valueStyle),
                   ],

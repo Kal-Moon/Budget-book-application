@@ -38,7 +38,9 @@ void main() {
     final oct = await db.getMonthBudget('2026-10');
     expect(oct.categoryBudget(1), 260000);
     expect(oct.totalBudget, 260000, reason: '10월 총 예산은 그대로');
-    final spent = EntryTotals(await db.watchMonthEntries('2026-10').first);
+    final spent = EntryTotals(
+      await db.watchEntriesBetween('2026-10-01', '2026-10-31').first,
+    );
     expect(spent.spentIn(1), 230000);
     expect(isOverBudget(spent.spentIn(1), oct.categoryBudget(1), 100), isFalse);
 

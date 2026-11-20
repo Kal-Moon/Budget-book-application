@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gagyebu/core/clock.dart';
 import 'package:gagyebu/core/today.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
@@ -212,12 +210,9 @@ void main() {
     expect(total.style!.color, const Color(0xFF085041));
   });
 
-  test('분석이 보는 달·해는 날짜가 바뀌면 이번 달로 돌아간다', () {
+  test('분석이 보는 달·해는 날짜가 바뀌면 이번 달로 돌아간다', () async {
     final clock = FakeClock(DateTime(2026, 12, 31, 23, 59));
-    final container = ProviderContainer(
-      overrides: [clockProvider.overrideWithValue(clock)],
-    );
-    addTearDown(container.dispose);
+    final container = await clockContainer(clock);
 
     container.read(analysisViewProvider.notifier).showMonth('2026-09');
     container.read(analysisViewProvider.notifier).moveYear(-2);
