@@ -7,6 +7,7 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../data/settings.dart';
 import '../../domain/budget.dart';
+import '../../domain/daily_allowance.dart';
 import '../../domain/summary.dart';
 import '../analysis/analysis_view.dart';
 import '../budget/budget_sheet.dart';
@@ -194,6 +195,26 @@ class _MonthBody extends ConsumerWidget {
     ];
     final groups = groupByDate(shown);
 
+    // 오늘 쓸 수 있는 돈: 이번 달을 보고 있고, 하루를 고르지 않았을 때만.
+    final todayKey = dateKeyOf(today);
+    final allowance =
+        settings.dailyAllowance == DailyAllowanceMode.off ||
+            !isCurrentMonth ||
+            view.selectedDate != null
+        ? null
+        : () {
+            final spentToday = EntryTotals(
+              entries.where((e) => e.date == todayKey),
+            ).expense;
+            return dailyAllowanceOf(
+              budget: budget.totalBudget,
+              spentBeforeToday: monthTotals.expense - spentToday,
+              spentToday: spentToday,
+              today: todayKey,
+              periodEnd: calendar.rangeOf(view.monthKey).end,
+            );
+          }();
+
     final expenseCats = _ofKind(EntryKind.expense);
     final filterCats = _ofKind(view.categoryKind);
 
@@ -235,6 +256,11 @@ class _MonthBody extends ConsumerWidget {
                 budget: budget.totalBudget,
                 threshold: settings.budgetThreshold,
               ),
+              if (allowance != null)
+                DailyAllowanceStrip(
+                  allowance: allowance,
+                  mode: settings.dailyAllowance,
+                ),
               if (settings.showHomeIncome)
                 IncomeStrip(month: month, totals: monthTotals),
               if (view.selectedDate case final date?)

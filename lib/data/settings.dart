@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/daily_allowance.dart';
+
 enum FontStyleOption { system, gothic, soft }
 
 enum FontSizeOption {
@@ -35,6 +37,7 @@ class AppSettings {
     this.monthStartChanges = '',
     this.alignMonthStats = false,
     this.alignYearStats = false,
+    this.dailyAllowance = DailyAllowanceMode.off,
   });
 
   final bool onboardingDone;
@@ -63,6 +66,9 @@ class AppSettings {
   /// 분석의 연간 통계를 한 달 시작일에 맞출지(끄면 1.1~12.31).
   final bool alignYearStats;
 
+  /// 홈에 "오늘 쓸 수 있는 돈"을 보여줄지, 어떻게 계산할지.
+  final DailyAllowanceMode dailyAllowance;
+
   AppSettings copyWith({
     bool? onboardingDone,
     bool? autoCopyBudget,
@@ -79,6 +85,7 @@ class AppSettings {
     String? monthStartChanges,
     bool? alignMonthStats,
     bool? alignYearStats,
+    DailyAllowanceMode? dailyAllowance,
   }) => AppSettings(
     onboardingDone: onboardingDone ?? this.onboardingDone,
     autoCopyBudget: autoCopyBudget ?? this.autoCopyBudget,
@@ -96,6 +103,7 @@ class AppSettings {
     monthStartChanges: monthStartChanges ?? this.monthStartChanges,
     alignMonthStats: alignMonthStats ?? this.alignMonthStats,
     alignYearStats: alignYearStats ?? this.alignYearStats,
+    dailyAllowance: dailyAllowance ?? this.dailyAllowance,
   );
 
   Map<String, Object> toJson() => {
@@ -114,6 +122,7 @@ class AppSettings {
     'monthStartChanges': monthStartChanges,
     'alignMonthStats': alignMonthStats,
     'alignYearStats': alignYearStats,
+    'dailyAllowance': dailyAllowance.name,
   };
 
   /// 저장된 값이 없거나 형식이 맞지 않으면 기본값을 쓴다.
@@ -148,6 +157,11 @@ class AppSettings {
       monthStartChanges: pick('monthStartChanges', d.monthStartChanges),
       alignMonthStats: pick('alignMonthStats', d.alignMonthStats),
       alignYearStats: pick('alignYearStats', d.alignYearStats),
+      dailyAllowance: pickEnum(
+        'dailyAllowance',
+        DailyAllowanceMode.values,
+        d.dailyAllowance,
+      ),
     );
   }
 

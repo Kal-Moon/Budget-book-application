@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/daily_allowance.dart';
+
 import '../../core/dates.dart';
 import '../../core/today.dart';
 import '../../data/providers.dart';
@@ -135,6 +137,32 @@ class DetailSettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+            ],
+          ),
+          SettingsSection(
+            title: '오늘 쓸 수 있는 돈',
+            children: [
+              const SettingsNote(
+                '남은 예산을 남은 날로 나눠서 홈 화면에 하루 금액을 보여줘요. '
+                '이번 달 예산을 정했을 때만, 예산을 넘기 전까지 보여요.',
+              ),
+              SettingsChoice<DailyAllowanceMode>(
+                items: DailyAllowanceMode.values,
+                selected: s.dailyAllowance,
+                labelOf: (v) => switch (v) {
+                  DailyAllowanceMode.off => '안 보기',
+                  DailyAllowanceMode.leftToday => '오늘 남은 돈',
+                  DailyAllowanceMode.perDay => '하루 기준 금액',
+                },
+                onSelected: (v) =>
+                    notifier.update((s) => s.copyWith(dailyAllowance: v)),
+              ),
+              if (s.dailyAllowance != DailyAllowanceMode.off)
+                SettingsNote(switch (s.dailyAllowance) {
+                  DailyAllowanceMode.leftToday =>
+                    '오늘 남은 돈: 하루 금액에서 오늘 쓴 돈을 빼서 보여줘요. 쓸수록 줄어들어요.',
+                  _ => '하루 기준 금액: 어제까지 쓴 돈으로 하루 금액을 정해요. 오늘 써도 내일까지는 그대로예요.',
+                }),
             ],
           ),
           SettingsSection(

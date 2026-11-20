@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/dates.dart';
 import '../../data/database.dart';
 import '../../domain/budget.dart';
+import '../../domain/daily_allowance.dart';
 import '../../domain/summary.dart';
 import '../theme.dart';
 
-/// 이번 달 예산이 0원일 때 보여주는 안내.
+/// 이번 달 예산을 아직 정하지 않았을 때 보여주는 안내.
 class SetupBanner extends StatelessWidget {
   const SetupBanner({super.key, required this.onSetup});
 
@@ -135,6 +136,64 @@ class SummaryCard extends StatelessWidget {
               ),
               Text('총 ${formatWon(budget)}', style: labelStyle),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 오늘 쓸 수 있는 돈 한 줄(세부 설정에서 켠 경우).
+class DailyAllowanceStrip extends StatelessWidget {
+  const DailyAllowanceStrip({
+    super.key,
+    required this.allowance,
+    required this.mode,
+  });
+
+  final DailyAllowance allowance;
+  final DailyAllowanceMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final left = allowance.leftToday;
+    final (label, value, color) = switch (mode) {
+      DailyAllowanceMode.perDay => (
+        '하루에 쓸 수 있는 돈',
+        formatWon(allowance.perDay),
+        c.accent,
+      ),
+      _ when left >= 0 => ('오늘 쓸 수 있는 돈', formatWon(left), c.accent),
+      _ => ('오늘 쓸 수 있는 돈', '${formatWon(-left)} 더 썼어요', c.danger),
+    };
+    final detail = mode == DailyAllowanceMode.perDay
+        ? '오늘 ${formatWon(allowance.spentToday)} 씀 · 남은 ${allowance.daysLeft}일'
+        : '남은 ${allowance.daysLeft}일 기준';
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface2,
+        border: Border(top: BorderSide(color: c.border, width: 0.5)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+      child: Row(
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: c.textSecondary)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              detail,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: c.textMuted),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),
