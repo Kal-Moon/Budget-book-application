@@ -221,7 +221,7 @@ class _MonthBody extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isCurrentMonth && budget.totalBudget == 0)
+              if (isCurrentMonth && !budget.isSet)
                 SetupBanner(onSetup: () => showBudgetSheet(context)),
               SummaryCard(
                 spentLabel: view.selectedDate == null

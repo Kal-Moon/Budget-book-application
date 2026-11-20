@@ -36,6 +36,16 @@ void main() {
       expect(find.text('총 예산으로 정하기 ›'), findsOneWidget);
     });
 
+    testWidgets('0원으로 정한 달에는 "설정되지 않았어요" 배너가 뜨지 않는다', (tester) async {
+      await pumpApp(
+        tester,
+        setup: (db) => db.saveMonthBudget(
+          const MonthBudget(monthKey: '2026-11', mode: BudgetMode.total),
+        ),
+      );
+      expect(find.text('예산이 설정되지 않았어요'), findsNothing);
+    });
+
     testWidgets('항목별로 바꾸면 카테고리마다 입력하고, 다시 열면 금액이 채워져 있다', (tester) async {
       final db = await pumpApp(tester);
       await openTab(tester, '설정');
