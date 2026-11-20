@@ -41,4 +41,31 @@ void main() {
         .get();
     expect(tables, isEmpty);
   });
+
+  test('버전 3 DB를 열면 고정 지출 표를 만들고 내역은 남긴다', () async {
+    final dir = await Directory.systemTemp.createTemp('gagyebu_v4');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/db.sqlite');
+    AppDatabase open() => AppDatabase(
+      DatabaseConnection(NativeDatabase(file), closeStreamsSynchronously: true),
+    );
+
+    final old = open();
+    await addEntry(old, date: '2026-11-16', categoryId: 1, amount: 1700);
+    await old.customStatement('DROP TABLE fixed_expenses');
+    await old.customStatement('PRAGMA user_version = 3');
+    await old.close();
+
+    final db = open();
+    addTearDown(db.close);
+    expect(await db.select(db.entries).get(), hasLength(1));
+    await db.saveFixedExpense(
+      name: '월세',
+      categoryId: 1,
+      amount: 500000,
+      day: 25,
+      today: '2026-11-20',
+    );
+    expect(await db.watchFixedExpenses().first, hasLength(1));
+  });
 }

@@ -11,6 +11,7 @@ import '../categories/category_manage_screen.dart';
 import '../import/import_screen.dart';
 import '../settings/backup_flow.dart';
 import '../settings/excel_export_flow.dart';
+import '../settings/fixed_expense_screen.dart';
 import '../settings/detail_settings_screen.dart';
 import '../settings/reset_flow.dart';
 import '../settings/settings_widgets.dart';
@@ -68,6 +69,18 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
+            ],
+          ),
+          SettingsSection(
+            title: '고정 지출',
+            children: [
+              SettingsRow(
+                label: '고정 지출 관리',
+                value:
+                    '${ref.watch(fixedExpensesProvider).value?.length ?? 0}개',
+                onTap: () => openFixedExpenses(context),
+              ),
+              const SettingsNote('월세·통신비처럼 매달 나가는 돈을 등록하면 그날 자동으로 입력해요.'),
             ],
           ),
           SettingsSection(

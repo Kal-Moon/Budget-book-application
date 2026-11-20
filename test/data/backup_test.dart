@@ -118,6 +118,35 @@ void main() {
     }
   });
 
+  test('고정 지출 표가 없던 버전 3 백업도 복원되고, 고정 지출은 비어 있다', () async {
+    await fill(source);
+    final bytes = await createBackup(source, settings: const {}, now: now);
+    final json = jsonDecode(utf8.decode(bytes)) as Map<String, Object?>;
+    json['schemaVersion'] = 3;
+    (json['tables'] as Map<String, Object?>).remove('fixed_expenses');
+    await target.saveFixedExpense(
+      name: '월세',
+      categoryId: 1,
+      amount: 500000,
+      day: 25,
+      today: '2026-11-20',
+    );
+
+    await restoreRecords(
+      target,
+      parseBackup(
+        utf8.encode(jsonEncode(json)),
+        schemaVersion: target.schemaVersion,
+      ),
+    );
+
+    expect(await target.watchFixedExpenses().first, isEmpty);
+    expect(
+      await target.select(target.entries).get(),
+      hasLength((await source.select(source.entries).get()).length),
+    );
+  });
+
   test('복원하면 지금 기록은 모두 사라지고 백업 내용만 남는다(합치지 않는다)', () async {
     await fill(source);
     await addEntry(target, date: '2026-11-10', categoryId: 3, amount: 4500);

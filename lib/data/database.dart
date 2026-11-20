@@ -3,6 +3,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 import '../domain/budget.dart';
 import '../domain/categories.dart';
+import '../domain/fixed_expense.dart';
 import '../domain/import.dart';
 import 'default_categories.dart';
 
@@ -63,8 +64,38 @@ class MonthCategoryBudgets extends Table {
   Set<Column> get primaryKey => {monthKey, categoryId};
 }
 
+/// 고정 지출: 매달 정한 날에 지출 내역을 자동으로 넣는다(설정 > 고정 지출).
+class FixedExpenses extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// 내역 칸에 들어갈 이름(예: 월세).
+  TextColumn get name => text().withLength(min: 1, max: 30)();
+  IntColumn get categoryId => integer().references(Categories, #id)();
+  IntColumn get amount => integer()();
+
+  /// 매달 며칠(1~31). 그 달에 없는 날이면 말일.
+  IntColumn get day => integer()();
+  TextColumn get place => text().withDefault(const Constant(''))();
+  TextColumn get memo => text().withDefault(const Constant(''))();
+
+  /// 다음에 입력할 날짜 'YYYY-MM-DD'. 입력할 때마다 다음 달로 넘어간다.
+  TextColumn get nextDate => text().withLength(min: 10, max: 10)();
+
+  /// 끄면 입력하지 않는다(다시 켜면 지난 달은 채우지 않는다).
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+}
+
+/// 고정 지출이 내역을 넣을 때의 시간.
+const fixedExpenseTime = '00:00';
+
 @DriftDatabase(
-  tables: [Categories, Entries, MonthBudgets, MonthCategoryBudgets],
+  tables: [
+    Categories,
+    Entries,
+    MonthBudgets,
+    MonthCategoryBudgets,
+    FixedExpenses,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
@@ -72,8 +103,9 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   /// 1: 처음 버전. 2: 영수증 기억 표 추가. 3: 영수증 입력을 빼면서 그 표를 지움.
+  /// 4: 고정 지출 표 추가.
   /// (테스트 빌드를 쓰던 폰의 데이터를 지키려고 출시 전이지만 마이그레이션을 둔다.)
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -86,6 +118,7 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await customStatement('DROP TABLE IF EXISTS receipt_memories');
       }
+      if (from < 4) await m.createTable(fixedExpenses);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -347,6 +380,8 @@ class AppDatabase extends _$AppDatabase {
       await (update(entries)..where((e) => e.categoryId.equals(id))).write(
         EntriesCompanion(categoryId: Value(moveTo)),
       );
+      await (update(fixedExpenses)..where((f) => f.categoryId.equals(id)))
+          .write(FixedExpensesCompanion(categoryId: Value(moveTo)));
       for (final b in budgets) {
         final target =
             await (select(monthCategoryBudgets)..where(
@@ -364,10 +399,121 @@ class AppDatabase extends _$AppDatabase {
     } else {
       await (delete(entries)..where((e) => e.categoryId.equals(id))).go();
     }
+    // 옮기지 않으면 그 카테고리의 고정 지출도 함께 지운다(이미 넣은 내역과 같은 처리).
+    await (delete(fixedExpenses)..where((f) => f.categoryId.equals(id))).go();
     await (delete(
       monthCategoryBudgets,
     )..where((b) => b.categoryId.equals(id))).go();
     await (delete(categories)..where((c) => c.id.equals(id))).go();
+  });
+
+  Stream<List<FixedExpense>> watchFixedExpenses() =>
+      (select(fixedExpenses)..orderBy([
+            (f) => OrderingTerm(expression: f.day),
+            (f) => OrderingTerm(expression: f.id),
+          ]))
+          .watch();
+
+  /// 고정 지출을 추가하거나([id]가 null) 고친다. 다음 입력일은 [today] 기준으로 정한다:
+  /// 새로 만들면 오늘 이후 처음 오는 그날, 고치거나 다시 켜면 이미 입력한 달은 건너뛴다.
+  Future<void> saveFixedExpense({
+    int? id,
+    required String name,
+    required int categoryId,
+    required int amount,
+    required int day,
+    String place = '',
+    String memo = '',
+    bool active = true,
+    required String today,
+  }) => transaction(() async {
+    final old = id == null
+        ? null
+        : await (select(
+            fixedExpenses,
+          )..where((f) => f.id.equals(id))).getSingleOrNull();
+    final next = old == null
+        ? firstFixedDateFrom(today, day)
+        : resumeFixedDate(storedNext: old.nextDate, day: day, today: today);
+    final row = FixedExpensesCompanion(
+      name: Value(name.trim()),
+      categoryId: Value(categoryId),
+      amount: Value(amount),
+      day: Value(day),
+      place: Value(place.trim()),
+      memo: Value(memo.trim()),
+      active: Value(active),
+      nextDate: Value(next),
+    );
+    if (old == null) {
+      await into(fixedExpenses).insert(row);
+    } else {
+      await (update(fixedExpenses)..where((f) => f.id.equals(id!))).write(row);
+    }
+  });
+
+  /// 켜고 끈다. 다시 켜면 지난 달은 채우지 않는다.
+  Future<void> setFixedExpenseActive(
+    int id,
+    bool active, {
+    required String today,
+  }) => transaction(() async {
+    final f = await (select(
+      fixedExpenses,
+    )..where((f) => f.id.equals(id))).getSingle();
+    await (update(fixedExpenses)..where((f) => f.id.equals(id))).write(
+      FixedExpensesCompanion(
+        active: Value(active),
+        nextDate: active
+            ? Value(
+                resumeFixedDate(
+                  storedNext: f.nextDate,
+                  day: f.day,
+                  today: today,
+                ),
+              )
+            : const Value.absent(),
+      ),
+    );
+  });
+
+  /// 고정 지출을 지운다. 이미 넣은 내역은 남는다.
+  Future<void> deleteFixedExpense(int id) =>
+      (delete(fixedExpenses)..where((f) => f.id.equals(id))).go();
+
+  /// 입력할 날이 된(오늘까지) 고정 지출을 내역으로 넣고 넣은 건수를 돌려준다.
+  /// 앱을 열 때와 날짜가 바뀔 때 부른다. 오래 안 열었으면 빠진 달도 넣는다.
+  Future<int> applyFixedExpenses(String today) => transaction(() async {
+    var count = 0;
+    final due =
+        await (select(fixedExpenses)..where(
+              (f) =>
+                  f.active.equals(true) &
+                  f.nextDate.isSmallerOrEqualValue(today),
+            ))
+            .get();
+    for (final f in due) {
+      final r = dueFixedDates(next: f.nextDate, day: f.day, today: today);
+      for (final date in r.dates) {
+        await into(entries).insert(
+          EntriesCompanion.insert(
+            kind: EntryKind.expense,
+            date: date,
+            time: fixedExpenseTime,
+            categoryId: f.categoryId,
+            amount: f.amount,
+            place: Value(f.place),
+            description: Value(f.name),
+            memo: Value(f.memo),
+          ),
+        );
+        count++;
+      }
+      await (update(fixedExpenses)..where((x) => x.id.equals(f.id))).write(
+        FixedExpensesCompanion(nextDate: Value(r.next)),
+      );
+    }
+    return count;
   });
 
   /// 가져온 내역을 한 번에 저장하고 (지출 건수, 수입 건수)를 돌려준다.

@@ -1511,6 +1511,562 @@ class MonthCategoryBudgetsCompanion
   }
 }
 
+class $FixedExpensesTable extends FixedExpenses
+    with TableInfo<$FixedExpensesTable, FixedExpense> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FixedExpensesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 30,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<int> categoryId = GeneratedColumn<int>(
+    'category_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES categories (id)',
+    ),
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<int> amount = GeneratedColumn<int>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<int> day = GeneratedColumn<int>(
+    'day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _placeMeta = const VerificationMeta('place');
+  @override
+  late final GeneratedColumn<String> place = GeneratedColumn<String>(
+    'place',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
+  @override
+  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
+    'memo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _nextDateMeta = const VerificationMeta(
+    'nextDate',
+  );
+  @override
+  late final GeneratedColumn<String> nextDate = GeneratedColumn<String>(
+    'next_date',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 10,
+      maxTextLength: 10,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    categoryId,
+    amount,
+    day,
+    place,
+    memo,
+    nextDate,
+    active,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'fixed_expenses';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FixedExpense> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('day')) {
+      context.handle(
+        _dayMeta,
+        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    if (data.containsKey('place')) {
+      context.handle(
+        _placeMeta,
+        place.isAcceptableOrUnknown(data['place']!, _placeMeta),
+      );
+    }
+    if (data.containsKey('memo')) {
+      context.handle(
+        _memoMeta,
+        memo.isAcceptableOrUnknown(data['memo']!, _memoMeta),
+      );
+    }
+    if (data.containsKey('next_date')) {
+      context.handle(
+        _nextDateMeta,
+        nextDate.isAcceptableOrUnknown(data['next_date']!, _nextDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nextDateMeta);
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FixedExpense map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FixedExpense(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}category_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount'],
+      )!,
+      day: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}day'],
+      )!,
+      place: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}place'],
+      )!,
+      memo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}memo'],
+      )!,
+      nextDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}next_date'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+    );
+  }
+
+  @override
+  $FixedExpensesTable createAlias(String alias) {
+    return $FixedExpensesTable(attachedDatabase, alias);
+  }
+}
+
+class FixedExpense extends DataClass implements Insertable<FixedExpense> {
+  final int id;
+
+  /// 내역 칸에 들어갈 이름(예: 월세).
+  final String name;
+  final int categoryId;
+  final int amount;
+
+  /// 매달 며칠(1~31). 그 달에 없는 날이면 말일.
+  final int day;
+  final String place;
+  final String memo;
+
+  /// 다음에 입력할 날짜 'YYYY-MM-DD'. 입력할 때마다 다음 달로 넘어간다.
+  final String nextDate;
+
+  /// 끄면 입력하지 않는다(다시 켜면 지난 달은 채우지 않는다).
+  final bool active;
+  const FixedExpense({
+    required this.id,
+    required this.name,
+    required this.categoryId,
+    required this.amount,
+    required this.day,
+    required this.place,
+    required this.memo,
+    required this.nextDate,
+    required this.active,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['category_id'] = Variable<int>(categoryId);
+    map['amount'] = Variable<int>(amount);
+    map['day'] = Variable<int>(day);
+    map['place'] = Variable<String>(place);
+    map['memo'] = Variable<String>(memo);
+    map['next_date'] = Variable<String>(nextDate);
+    map['active'] = Variable<bool>(active);
+    return map;
+  }
+
+  FixedExpensesCompanion toCompanion(bool nullToAbsent) {
+    return FixedExpensesCompanion(
+      id: Value(id),
+      name: Value(name),
+      categoryId: Value(categoryId),
+      amount: Value(amount),
+      day: Value(day),
+      place: Value(place),
+      memo: Value(memo),
+      nextDate: Value(nextDate),
+      active: Value(active),
+    );
+  }
+
+  factory FixedExpense.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FixedExpense(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      categoryId: serializer.fromJson<int>(json['categoryId']),
+      amount: serializer.fromJson<int>(json['amount']),
+      day: serializer.fromJson<int>(json['day']),
+      place: serializer.fromJson<String>(json['place']),
+      memo: serializer.fromJson<String>(json['memo']),
+      nextDate: serializer.fromJson<String>(json['nextDate']),
+      active: serializer.fromJson<bool>(json['active']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'categoryId': serializer.toJson<int>(categoryId),
+      'amount': serializer.toJson<int>(amount),
+      'day': serializer.toJson<int>(day),
+      'place': serializer.toJson<String>(place),
+      'memo': serializer.toJson<String>(memo),
+      'nextDate': serializer.toJson<String>(nextDate),
+      'active': serializer.toJson<bool>(active),
+    };
+  }
+
+  FixedExpense copyWith({
+    int? id,
+    String? name,
+    int? categoryId,
+    int? amount,
+    int? day,
+    String? place,
+    String? memo,
+    String? nextDate,
+    bool? active,
+  }) => FixedExpense(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    categoryId: categoryId ?? this.categoryId,
+    amount: amount ?? this.amount,
+    day: day ?? this.day,
+    place: place ?? this.place,
+    memo: memo ?? this.memo,
+    nextDate: nextDate ?? this.nextDate,
+    active: active ?? this.active,
+  );
+  FixedExpense copyWithCompanion(FixedExpensesCompanion data) {
+    return FixedExpense(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      day: data.day.present ? data.day.value : this.day,
+      place: data.place.present ? data.place.value : this.place,
+      memo: data.memo.present ? data.memo.value : this.memo,
+      nextDate: data.nextDate.present ? data.nextDate.value : this.nextDate,
+      active: data.active.present ? data.active.value : this.active,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FixedExpense(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amount: $amount, ')
+          ..write('day: $day, ')
+          ..write('place: $place, ')
+          ..write('memo: $memo, ')
+          ..write('nextDate: $nextDate, ')
+          ..write('active: $active')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    categoryId,
+    amount,
+    day,
+    place,
+    memo,
+    nextDate,
+    active,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FixedExpense &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.categoryId == this.categoryId &&
+          other.amount == this.amount &&
+          other.day == this.day &&
+          other.place == this.place &&
+          other.memo == this.memo &&
+          other.nextDate == this.nextDate &&
+          other.active == this.active);
+}
+
+class FixedExpensesCompanion extends UpdateCompanion<FixedExpense> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int> categoryId;
+  final Value<int> amount;
+  final Value<int> day;
+  final Value<String> place;
+  final Value<String> memo;
+  final Value<String> nextDate;
+  final Value<bool> active;
+  const FixedExpensesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.day = const Value.absent(),
+    this.place = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.nextDate = const Value.absent(),
+    this.active = const Value.absent(),
+  });
+  FixedExpensesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required int categoryId,
+    required int amount,
+    required int day,
+    this.place = const Value.absent(),
+    this.memo = const Value.absent(),
+    required String nextDate,
+    this.active = const Value.absent(),
+  }) : name = Value(name),
+       categoryId = Value(categoryId),
+       amount = Value(amount),
+       day = Value(day),
+       nextDate = Value(nextDate);
+  static Insertable<FixedExpense> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? categoryId,
+    Expression<int>? amount,
+    Expression<int>? day,
+    Expression<String>? place,
+    Expression<String>? memo,
+    Expression<String>? nextDate,
+    Expression<bool>? active,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (categoryId != null) 'category_id': categoryId,
+      if (amount != null) 'amount': amount,
+      if (day != null) 'day': day,
+      if (place != null) 'place': place,
+      if (memo != null) 'memo': memo,
+      if (nextDate != null) 'next_date': nextDate,
+      if (active != null) 'active': active,
+    });
+  }
+
+  FixedExpensesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int>? categoryId,
+    Value<int>? amount,
+    Value<int>? day,
+    Value<String>? place,
+    Value<String>? memo,
+    Value<String>? nextDate,
+    Value<bool>? active,
+  }) {
+    return FixedExpensesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      amount: amount ?? this.amount,
+      day: day ?? this.day,
+      place: place ?? this.place,
+      memo: memo ?? this.memo,
+      nextDate: nextDate ?? this.nextDate,
+      active: active ?? this.active,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<int>(categoryId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<int>(amount.value);
+    }
+    if (day.present) {
+      map['day'] = Variable<int>(day.value);
+    }
+    if (place.present) {
+      map['place'] = Variable<String>(place.value);
+    }
+    if (memo.present) {
+      map['memo'] = Variable<String>(memo.value);
+    }
+    if (nextDate.present) {
+      map['next_date'] = Variable<String>(nextDate.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FixedExpensesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('amount: $amount, ')
+          ..write('day: $day, ')
+          ..write('place: $place, ')
+          ..write('memo: $memo, ')
+          ..write('nextDate: $nextDate, ')
+          ..write('active: $active')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1519,6 +2075,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MonthBudgetsTable monthBudgets = $MonthBudgetsTable(this);
   late final $MonthCategoryBudgetsTable monthCategoryBudgets =
       $MonthCategoryBudgetsTable(this);
+  late final $FixedExpensesTable fixedExpenses = $FixedExpensesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1528,6 +2085,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     entries,
     monthBudgets,
     monthCategoryBudgets,
+    fixedExpenses,
   ];
 }
 
@@ -1591,6 +2149,24 @@ final class $$CategoriesTableReferences
     final cache = $_typedResult.readTableOrNull(
       _monthCategoryBudgetsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$FixedExpensesTable, List<FixedExpense>>
+  _fixedExpensesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.fixedExpenses,
+    aliasName: 'categories__id__fixed_expenses__category_id',
+  );
+
+  $$FixedExpensesTableProcessedTableManager get fixedExpensesRefs {
+    final manager = $$FixedExpensesTableTableManager(
+      $_db,
+      $_db.fixedExpenses,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_fixedExpensesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -1678,6 +2254,31 @@ class $$CategoriesTableFilterComposer
           }) => $$MonthCategoryBudgetsTableFilterComposer(
             $db: $db,
             $table: $db.monthCategoryBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> fixedExpensesRefs(
+    Expression<bool> Function($$FixedExpensesTableFilterComposer f) f,
+  ) {
+    final $$FixedExpensesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.fixedExpenses,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FixedExpensesTableFilterComposer(
+            $db: $db,
+            $table: $db.fixedExpenses,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1805,6 +2406,31 @@ class $$CategoriesTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> fixedExpensesRefs<T extends Object>(
+    Expression<T> Function($$FixedExpensesTableAnnotationComposer a) f,
+  ) {
+    final $$FixedExpensesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.fixedExpenses,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FixedExpensesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.fixedExpenses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CategoriesTableTableManager
@@ -1823,6 +2449,7 @@ class $$CategoriesTableTableManager
           PrefetchHooks Function({
             bool entriesRefs,
             bool monthCategoryBudgetsRefs,
+            bool fixedExpensesRefs,
           })
         > {
   $$CategoriesTableTableManager(_$AppDatabase db, $CategoriesTable table)
@@ -1877,12 +2504,17 @@ class $$CategoriesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({entriesRefs = false, monthCategoryBudgetsRefs = false}) {
+              ({
+                entriesRefs = false,
+                monthCategoryBudgetsRefs = false,
+                fixedExpensesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (entriesRefs) db.entries,
                     if (monthCategoryBudgetsRefs) db.monthCategoryBudgets,
+                    if (fixedExpensesRefs) db.fixedExpenses,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -1927,6 +2559,26 @@ class $$CategoriesTableTableManager
                           referencedColumn: 'category_id',
                           typedResults: items,
                         ),
+                      if (fixedExpensesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Category,
+                          $CategoriesTable,
+                          FixedExpense,
+                          $FixedExpensesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CategoriesTableReferences
+                              ._fixedExpensesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).fixedExpensesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'category_id',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -1947,7 +2599,11 @@ typedef $$CategoriesTableProcessedTableManager =
       $$CategoriesTableUpdateCompanionBuilder,
       (Category, $$CategoriesTableReferences),
       Category,
-      PrefetchHooks Function({bool entriesRefs, bool monthCategoryBudgetsRefs})
+      PrefetchHooks Function({
+        bool entriesRefs,
+        bool monthCategoryBudgetsRefs,
+        bool fixedExpensesRefs,
+      })
     >;
 typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
   Value<int> id,
@@ -2804,6 +3460,395 @@ typedef $$MonthCategoryBudgetsTableProcessedTableManager =
       MonthCategoryBudgetRow,
       PrefetchHooks Function({bool categoryId})
     >;
+typedef $$FixedExpensesTableCreateCompanionBuilder =
+    FixedExpensesCompanion Function({
+      Value<int> id,
+      required String name,
+      required int categoryId,
+      required int amount,
+      required int day,
+      Value<String> place,
+      Value<String> memo,
+      required String nextDate,
+      Value<bool> active,
+    });
+typedef $$FixedExpensesTableUpdateCompanionBuilder =
+    FixedExpensesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int> categoryId,
+      Value<int> amount,
+      Value<int> day,
+      Value<String> place,
+      Value<String> memo,
+      Value<String> nextDate,
+      Value<bool> active,
+    });
+
+final class $$FixedExpensesTableReferences
+    extends BaseReferences<_$AppDatabase, $FixedExpensesTable, FixedExpense> {
+  $$FixedExpensesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CategoriesTable _categoryIdTable(_$AppDatabase db) =>
+      db.categories.createAlias('fixed_expenses__category_id__categories__id');
+
+  $$CategoriesTableProcessedTableManager get categoryId {
+    final $_column = $_itemColumn<int>('category_id')!;
+
+    final manager = $$CategoriesTableTableManager(
+      $_db,
+      $_db.categories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$FixedExpensesTableFilterComposer
+    extends Composer<_$AppDatabase, $FixedExpensesTable> {
+  $$FixedExpensesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get place => $composableBuilder(
+    column: $table.place,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get memo => $composableBuilder(
+    column: $table.memo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nextDate => $composableBuilder(
+    column: $table.nextDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CategoriesTableFilterComposer get categoryId {
+    final $$CategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FixedExpensesTableOrderingComposer
+    extends Composer<_$AppDatabase, $FixedExpensesTable> {
+  $$FixedExpensesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get place => $composableBuilder(
+    column: $table.place,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get memo => $composableBuilder(
+    column: $table.memo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nextDate => $composableBuilder(
+    column: $table.nextDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CategoriesTableOrderingComposer get categoryId {
+    final $$CategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FixedExpensesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FixedExpensesTable> {
+  $$FixedExpensesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<int> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+
+  GeneratedColumn<String> get place =>
+      $composableBuilder(column: $table.place, builder: (column) => column);
+
+  GeneratedColumn<String> get memo =>
+      $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<String> get nextDate =>
+      $composableBuilder(column: $table.nextDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  $$CategoriesTableAnnotationComposer get categoryId {
+    final $$CategoriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.categories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CategoriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.categories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$FixedExpensesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FixedExpensesTable,
+          FixedExpense,
+          $$FixedExpensesTableFilterComposer,
+          $$FixedExpensesTableOrderingComposer,
+          $$FixedExpensesTableAnnotationComposer,
+          $$FixedExpensesTableCreateCompanionBuilder,
+          $$FixedExpensesTableUpdateCompanionBuilder,
+          (FixedExpense, $$FixedExpensesTableReferences),
+          FixedExpense,
+          PrefetchHooks Function({bool categoryId})
+        > {
+  $$FixedExpensesTableTableManager(_$AppDatabase db, $FixedExpensesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FixedExpensesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FixedExpensesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FixedExpensesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> categoryId = const Value.absent(),
+                Value<int> amount = const Value.absent(),
+                Value<int> day = const Value.absent(),
+                Value<String> place = const Value.absent(),
+                Value<String> memo = const Value.absent(),
+                Value<String> nextDate = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+              }) => FixedExpensesCompanion(
+                id: id,
+                name: name,
+                categoryId: categoryId,
+                amount: amount,
+                day: day,
+                place: place,
+                memo: memo,
+                nextDate: nextDate,
+                active: active,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required int categoryId,
+                required int amount,
+                required int day,
+                Value<String> place = const Value.absent(),
+                Value<String> memo = const Value.absent(),
+                required String nextDate,
+                Value<bool> active = const Value.absent(),
+              }) => FixedExpensesCompanion.insert(
+                id: id,
+                name: name,
+                categoryId: categoryId,
+                amount: amount,
+                day: day,
+                place: place,
+                memo: memo,
+                nextDate: nextDate,
+                active: active,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$FixedExpensesTable, FixedExpense>(table),
+                  $$FixedExpensesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (categoryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.categoryId,
+                        referencedTable: $$FixedExpensesTableReferences
+                            ._categoryIdTable(db),
+                        referencedColumn: $$FixedExpensesTableReferences
+                            ._categoryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$FixedExpensesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FixedExpensesTable,
+      FixedExpense,
+      $$FixedExpensesTableFilterComposer,
+      $$FixedExpensesTableOrderingComposer,
+      $$FixedExpensesTableAnnotationComposer,
+      $$FixedExpensesTableCreateCompanionBuilder,
+      $$FixedExpensesTableUpdateCompanionBuilder,
+      (FixedExpense, $$FixedExpensesTableReferences),
+      FixedExpense,
+      PrefetchHooks Function({bool categoryId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2816,4 +3861,6 @@ class $AppDatabaseManager {
       $$MonthBudgetsTableTableManager(_db, _db.monthBudgets);
   $$MonthCategoryBudgetsTableTableManager get monthCategoryBudgets =>
       $$MonthCategoryBudgetsTableTableManager(_db, _db.monthCategoryBudgets);
+  $$FixedExpensesTableTableManager get fixedExpenses =>
+      $$FixedExpensesTableTableManager(_db, _db.fixedExpenses);
 }

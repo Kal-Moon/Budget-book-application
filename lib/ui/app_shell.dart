@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/dates.dart';
 import '../core/today.dart';
 import '../data/providers.dart';
 import '../data/settings.dart';
@@ -32,7 +33,18 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkNewMonth());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _applyFixedExpenses();
+      await _checkNewMonth();
+    });
+  }
+
+  /// 입력할 날이 된 고정 지출을 넣고 알린다(앱을 켰을 때, 날짜가 바뀔 때).
+  Future<void> _applyFixedExpenses() async {
+    if (!mounted) return;
+    final today = dateKeyOf(ref.read(todayProvider));
+    final count = await ref.read(databaseProvider).applyFixedExpenses(today);
+    if (count > 0 && mounted) showToast(context, '고정 지출 $count건을 입력했어요');
   }
 
   /// 새 달이 되면(앱을 켰을 때 포함) 이번 달 예산을 이어받을지 확인한다.
@@ -77,6 +89,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       settingsProvider.select((s) => s.exitConfirm),
     );
     ref.listen(currentMonthKeyProvider, (_, _) => _checkNewMonth());
+    ref.listen(todayProvider, (_, _) => _applyFixedExpenses());
     return PopScope(
       canPop: tab == AppTab.home && !exitConfirm,
       onPopInvokedWithResult: (didPop, _) {
