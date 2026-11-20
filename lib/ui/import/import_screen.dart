@@ -12,6 +12,7 @@ import '../../domain/import.dart';
 import '../navigation.dart';
 import '../settings/settings_widgets.dart';
 import '../theme.dart';
+import 'import_table_view.dart';
 
 /// 사용자가 고른 파일. 테스트에서는 [importFilePickerProvider]를 바꿔 끼운다.
 typedef PickedImportFile = ({String name, Uint8List bytes});
@@ -44,6 +45,8 @@ class ImportScreen extends ConsumerStatefulWidget {
 class _ImportScreenState extends ConsumerState<ImportScreen> {
   int _step = 0;
   String? _fileName;
+  List<ImportSheet> _sheets = const [];
+  int _sheetIndex = 0;
   ImportTable? _table;
   ImportMapping? _mapping;
   ImportParseResult? _parsed;
@@ -59,11 +62,11 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     try {
       final picked = await ref.read(importFilePickerProvider)();
       if (picked == null || !mounted) return;
-      final table = readImportFile(picked.name, picked.bytes);
+      final sheets = readImportSheets(picked.name, picked.bytes);
       setState(() {
         _fileName = picked.name;
-        _table = table;
-        _mapping = guessMapping(table);
+        _sheets = sheets;
+        _useSheet(0);
       });
     } on ImportReadException catch (e) {
       setState(() {
@@ -76,18 +79,47 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     }
   }
 
+  /// 시트를 바꾸거나 헤더 줄을 바꾸면 열 연결을 다시 추측한다.
+  void _useSheet(int index, {int? headerRow}) {
+    _sheetIndex = index;
+    final table = tableOfSheet(_sheets[index], headerRow: headerRow);
+    _table = table;
+    _mapping = guessMapping(table);
+    _error = null;
+  }
+
+  Future<void> _pickColumnRole(int column) async {
+    final table = _table!;
+    final picked = await showRolePicker(
+      context,
+      column: column,
+      header: column < table.headers.length
+          ? table.headers[column]
+          : '${column + 1}열',
+      mapping: _mapping!,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _mapping = _mapping!.assign(column, picked.role);
+      _error = null;
+    });
+  }
+
   Future<void> _next() async {
     switch (_step) {
       case 0:
         setState(() => _step = 1);
       case 1:
         final m = _mapping!;
-        if (m.date < 0 || m.amount < 0) {
-          setState(() => _error = '날짜와 금액 열은 반드시 지정해야 해요.');
+        final problem = m.problem;
+        if (problem != null) {
+          setState(() => _error = problem);
           return;
         }
-        if (m.typeMode == ImportTypeMode.column && m.type < 0) {
-          setState(() => _error = '수입/지출을 구분할 열을 지정해주세요.');
+        if (_table!.rows.isEmpty) {
+          setState(
+            () => _error = '항목 이름 줄 아래에 내역이 없어요. 항목 이름이 있는 줄을 다시 골라주세요.',
+          );
           return;
         }
         // 지금 고른 열 연결로 읽은 뒤, 그 결과로 카테고리 목록을 만든다.
@@ -335,81 +367,101 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     if (_error != null) _errorBox(c),
     _hint(
       c,
-      'Tip. 파일 첫 줄은 "날짜", "금액" 같은 항목 이름(헤더)이어야 해요. '
-      '다음 단계에서 어떤 열이 무엇인지 직접 확인하고 바꿀 수 있어요.',
+      'Tip. 파일 위쪽에 제목 줄이 있거나 열 이름이 달라도 괜찮아요. '
+      '다음 단계에서 파일을 표로 보면서 어느 열이 날짜·금액·카테고리인지 직접 맞출 수 있어요.',
     ),
   ];
 
-  // 2단계: 열 확인
+  // 2단계: 표를 보면서 맞추기
   List<Widget> _mappingStep(AppColors c) {
     final table = _table!;
     final m = _mapping!;
-    Widget row(
-      String label,
-      int value,
-      ImportMapping Function(int) change, {
-      bool allowNone = true,
-    }) => Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(13, 2, 9, 2),
-      decoration: BoxDecoration(
-        color: c.surface2,
-        border: Border.all(color: c.border, width: 0.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 70,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Text('←', style: TextStyle(fontSize: 12, color: c.textMuted)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButton<int>(
-              key: ValueKey('map-$label'),
-              value: value,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              style: TextStyle(fontSize: 12.5, color: c.textPrimary),
-              items: [
-                if (allowNone || value < 0)
-                  DropdownMenuItem(
-                    value: -1,
-                    child: Text(allowNone ? '없음' : '선택해주세요'),
-                  ),
-                for (final (i, h) in table.headers.indexed)
-                  DropdownMenuItem(
-                    value: i,
-                    child: Text(
-                      '${i + 1}열: $h',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              onChanged: (v) => setState(() {
-                _mapping = change(v ?? -1);
-                _error = null;
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
+    final assigned = [
+      for (final role in ImportRole.values)
+        if (m.columnOf(role) >= 0) role,
+    ];
+    String columnName(int col) =>
+        '${col + 1}열${col < table.headers.length ? ' "${table.headers[col]}"' : ''}';
 
     return [
-      ..._title(c, '항목을 확인해주세요', '파일의 각 열이 어떤 정보인지 확인하고, 다르면 바꿔주세요.'),
-      row('날짜', m.date, (v) => m.copyWith(date: v), allowNone: false),
-      row('금액', m.amount, (v) => m.copyWith(amount: v), allowNone: false),
-      row('카테고리', m.category, (v) => m.copyWith(category: v)),
-      row('구매처', m.place, (v) => m.copyWith(place: v)),
-      row('내역', m.description, (v) => m.copyWith(description: v)),
-      row('메모', m.memo, (v) => m.copyWith(memo: v)),
+      ..._title(
+        c,
+        '표를 보면서 맞춰주세요',
+        '① 항목 이름(날짜·금액 같은 열 이름)이 있는 줄의 번호를 눌러주세요.\n'
+            '② 맨 위 칸을 눌러 각 열이 무엇인지 정해주세요. 앱이 먼저 추측해 뒀어요.',
+      ),
+      if (_sheets.length > 1)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              const Text(
+                '시트',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButton<int>(
+                  key: const ValueKey('sheet'),
+                  value: _sheetIndex,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  style: TextStyle(fontSize: 13, color: c.textPrimary),
+                  items: [
+                    for (final (i, sheet) in _sheets.indexed)
+                      DropdownMenuItem(value: i, child: Text(sheet.name)),
+                  ],
+                  onChanged: (v) => setState(() => _useSheet(v ?? 0)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ImportTableView(
+        table: table,
+        mapping: m,
+        onColumnTap: _pickColumnRole,
+        onRowTap: (row) =>
+            setState(() => _useSheet(_sheetIndex, headerRow: row)),
+      ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(
+          '${table.headerRow + 1}번째 줄을 항목 이름으로 쓰고, 그 아래 ${table.rows.length}줄을 읽어요.'
+          '${table.headerRow > 0 ? ' 위의 ${table.headerRow}줄은 건너뛰어요.' : ''}',
+          style: TextStyle(fontSize: 11.5, color: c.textMuted),
+        ),
+      ),
+      const SizedBox(height: 14),
+      for (final role in assigned)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 96,
+                child: Text(
+                  role.label,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text('←', style: TextStyle(fontSize: 12, color: c.textMuted)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  columnName(m.columnOf(role)),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: c.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(0, 14, 0, 8),
         child: Text(
           '수입/지출은 어떻게 구분할까요?',
           style: TextStyle(
@@ -419,28 +471,40 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
           ),
         ),
       ),
-      SettingsChoice<ImportTypeMode>(
-        items: ImportTypeMode.values,
-        selected: m.typeMode,
-        labelOf: (t) => switch (t) {
-          ImportTypeMode.sign => '금액 부호로',
-          ImportTypeMode.column => '별도 열로',
-          ImportTypeMode.allExpense => '전부 지출로',
-        },
-        onSelected: (t) => setState(() {
-          _mapping = m.copyWith(typeMode: t);
-          _error = null;
+      if (m.typeMode == ImportTypeMode.split)
+        _hint(
+          c,
+          '지출 금액 열과 수입 금액 열로 나눠서 가져와요. '
+          '한 줄에 둘 다 적혀 있으면 지출 1건, 수입 1건으로 들어가요.',
+        )
+      else ...[
+        SettingsChoice<ImportTypeMode>(
+          items: const [
+            ImportTypeMode.sign,
+            ImportTypeMode.column,
+            ImportTypeMode.allExpense,
+          ],
+          selected: m.typeMode,
+          labelOf: (t) => switch (t) {
+            ImportTypeMode.sign => '금액 부호로',
+            ImportTypeMode.column => '별도 열로',
+            _ => '전부 지출로',
+          },
+          onSelected: (t) => setState(() {
+            _mapping = m.copyWith(typeMode: t);
+            _error = null;
+          }),
+        ),
+        _hint(c, switch (m.typeMode) {
+          ImportTypeMode.sign => '금액 부호로: 음수(-)는 지출, 양수는 수입으로 처리해요.',
+          ImportTypeMode.column =>
+            m.type < 0
+                ? '별도 열로: 표 맨 위 칸에서 "수입"/"지출"이 적힌 열을 "수입/지출 구분"으로 정해주세요.'
+                : '별도 열로: ${columnName(m.type)}의 값(예: "수입"/"지출")을 보고 구분해요.',
+          _ => '전부 지출로: 파일의 모든 내역을 지출로 가져와요. 수입 기록이 없는 파일에 적합해요.',
         }),
-      ),
-      const SizedBox(height: 10),
-      if (m.typeMode == ImportTypeMode.column)
-        row('구분 열', m.type, (v) => m.copyWith(type: v), allowNone: false),
-      _hint(c, switch (m.typeMode) {
-        ImportTypeMode.sign => '금액 부호로: 음수(-)는 지출, 양수는 수입으로 처리해요.',
-        ImportTypeMode.column => '별도 열로: 지정한 열의 값(예: "수입"/"지출")을 보고 구분해요.',
-        ImportTypeMode.allExpense =>
-          '전부 지출로: 파일의 모든 내역을 지출로 가져와요. 수입 기록이 없는 파일에 적합해요.',
-      }),
+        _hint(c, '은행 파일처럼 출금액·입금액이 따로 있으면, 그 열들을 "지출 금액"·"수입 금액"으로 정해주세요.'),
+      ],
       if (_error != null) _errorBox(c),
     ];
   }

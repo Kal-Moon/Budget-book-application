@@ -49,6 +49,20 @@ void main() {
     expect(row[2], '점심');
   });
 
+  test('엑셀의 시트를 모두 읽고, 빈 시트는 뺀다', () {
+    final book = Excel.createExcel();
+    book.rename(book.getDefaultSheet()!, '빈 시트');
+    book['2025년'].appendRow([TextCellValue('날짜'), TextCellValue('금액')]);
+    book['2026년'].appendRow([TextCellValue('날짜'), TextCellValue('금액')]);
+    book['2026년'].appendRow([TextCellValue('2026-11-08'), IntCellValue(-4500)]);
+    final sheets = readImportSheets(
+      'a.xlsx',
+      Uint8List.fromList(book.encode()!),
+    );
+    expect(sheets.map((s) => s.name), ['2025년', '2026년']);
+    expect(tableOfSheet(sheets[1]).rows, hasLength(1));
+  });
+
   test('읽을 수 없는 파일은 이유를 알려준다', () {
     String messageOf(String name, String content) {
       try {
