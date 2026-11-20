@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
 
 import '../helpers.dart';
@@ -307,5 +308,68 @@ void main() {
         tester.getTopLeft(find.text(name)).dy,
     ];
     expect([...order]..sort(), order, reason: '화면에도 같은 순서');
+  });
+
+  group('고정 지출이 있는 카테고리', () {
+    Future<void> withFixed(AppDatabase db) => db.saveFixedExpense(
+      name: '구독',
+      categoryId: 3,
+      amount: 9900,
+      day: 20,
+      today: '2026-11-08',
+    );
+
+    testWidgets('내역이 없어도 옮길지 묻고, 그냥 지우면 경고한 뒤 고정 지출도 지운다', (tester) async {
+      final db = await pumpApp(tester, setup: withFixed);
+      await openManage(tester);
+      await tap(tester, find.text('카페'));
+      await tap(tester, find.text('이 카테고리 삭제하기'));
+
+      expect(find.text("'카페' 삭제"), findsOneWidget);
+      expect(find.textContaining('고정 지출 1개을(를)'), findsOneWidget);
+      expect(find.textContaining('내역 0건 보기'), findsNothing);
+      await tap(tester, find.text('옮기지 않고 고정 지출까지 함께 삭제'));
+
+      expect(find.text('고정 지출도 함께 삭제할까요?'), findsOneWidget);
+      expect(
+        find.textContaining('삭제한 고정 지출은 앞으로 자동으로 입력되지 않아요.'),
+        findsOneWidget,
+      );
+      await tap(tester, find.text('함께 삭제'));
+      final fixed = await tester.runAsync(() => db.watchFixedExpenses().first);
+      expect(fixed, isEmpty);
+    });
+
+    testWidgets('옮기면 고정 지출도 옮긴다고 알리고 옮긴다', (tester) async {
+      final db = await pumpApp(
+        tester,
+        setup: (db) async {
+          await withFixed(db);
+          await addEntry(db, date: '2026-11-07', categoryId: 3, amount: 4500);
+        },
+      );
+      await openManage(tester);
+      await tap(tester, find.text('카페'));
+      await tap(tester, find.text('이 카테고리 삭제하기'));
+      expect(find.text('옮기지 않고 내역과 고정 지출까지 함께 삭제'), findsOneWidget);
+      await tap(tester, find.text('식비(으)로 옮기기'));
+
+      expect(
+        find.text("'카페'의 내역 1건과 예산, 고정 지출 1개를 '식비'(으)로 옮기고, '카페' 카테고리를 삭제해요."),
+        findsOneWidget,
+      );
+      await tap(tester, find.text('옮기고 삭제'));
+      final fixed = await tester.runAsync(() => db.watchFixedExpenses().first);
+      expect(fixed!.single.categoryId, 1);
+    });
+
+    testWidgets('합치기 확인창에도 고정 지출을 알린다', (tester) async {
+      await pumpApp(tester, setup: withFixed);
+      await openManage(tester);
+      await tap(tester, find.text('카페'));
+      await tap(tester, find.text('다른 카테고리와 합치기'));
+      await tap(tester, find.text("'식비'에 합치기"));
+      expect(find.textContaining("고정 지출 1개도 '식비'(으)로 바뀌어요."), findsOneWidget);
+    });
   });
 }

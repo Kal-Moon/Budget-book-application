@@ -358,6 +358,15 @@ class AppDatabase extends _$AppDatabase {
     return (await query.getSingle()).read(count) ?? 0;
   }
 
+  /// 이 카테고리를 쓰는 고정 지출 수(꺼 둔 것 포함).
+  Future<int> countFixedExpensesIn(int categoryId) async {
+    final count = fixedExpenses.id.count();
+    final query = selectOnly(fixedExpenses)
+      ..addColumns([count])
+      ..where(fixedExpenses.categoryId.equals(categoryId));
+    return (await query.getSingle()).read(count) ?? 0;
+  }
+
   /// 항목별 방식인 달의 카테고리 예산 하나를 바꾼다.
   Future<void> setCategoryBudget(String monthKey, int categoryId, int amount) =>
       into(monthCategoryBudgets).insertOnConflictUpdate(

@@ -68,6 +68,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     if (target == null || !mounted) return;
     final db = ref.read(databaseProvider);
     final count = await db.countEntriesIn(cat.id);
+    final fixed = await db.countFixedExpensesIn(cat.id);
     if (!mounted) return;
     final ok = await showConfirmSheet(
       context,
@@ -75,6 +76,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
       description: Text(
         "${count > 0 ? "'${cat.name}'의 내역 $count건과 " : "'${cat.name}'의 "}"
         "모든 달의 예산을 '${target.name}'에 더하고, '${cat.name}'은(는) 목록에서 없어져요.\n"
+        "${fixed > 0 ? "고정 지출 $fixed개도 '${target.name}'(으)로 바뀌어요.\n" : ''}"
         "이름·아이콘·색상은 '${target.name}' 것이 남아요. 합친 뒤에는 되돌릴 수 없어요.",
       ),
       confirmLabel: '합치기',
@@ -143,11 +145,13 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     }
     final db = ref.read(databaseProvider);
     var count = await db.countEntriesIn(cat.id);
+    final fixed = await db.countFixedExpensesIn(cat.id);
     if (!mounted) return;
 
     int? moveTo;
-    if (count > 0) {
-      final choice = await _showMoveSheet(cat, cats, count);
+    // 내역이나 고정 지출이 있으면 옮길지 먼저 묻는다.
+    if (count > 0 || fixed > 0) {
+      final choice = await _showMoveSheet(cat, cats, count, fixed);
       if (choice == null || !mounted) return;
       moveTo = choice == _deleteWithEntries ? null : choice;
       // 시트에서 "내역 보기"로 일부를 다른 카테고리로 옮겼을 수 있다.
@@ -156,25 +160,46 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     }
 
     final target = cats.where((c) => c.id == moveTo).firstOrNull;
+    final c = context.colors;
+    final what = [
+      if (count > 0) '내역 $count건',
+      if (fixed > 0) '고정 지출 $fixed개',
+    ].join('과 ');
     final ok = await showConfirmSheet(
       context,
       title: target != null
           ? "'${target.name}'(으)로 옮길까요?"
+          : count > 0 && fixed > 0
+          ? '내역과 고정 지출도 함께 삭제할까요?'
           : count > 0
           ? '내역도 함께 삭제할까요?'
+          : fixed > 0
+          ? '고정 지출도 함께 삭제할까요?'
           : '카테고리를 삭제할까요?',
-      description: Text(
-        target != null
-            ? "'${cat.name}'의 내역 $count건과 예산을 '${target.name}'(으)로 옮기고, "
-                  "'${cat.name}' 카테고리를 삭제해요."
-            : count > 0
-            ? "'${cat.name}' 카테고리의 내역 $count건이 전부 사라져요. 이 작업은 되돌릴 수 없어요."
-            : "'${cat.name}' 카테고리를 삭제해요.",
+      description: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: target != null
+                  ? "'${cat.name}'의 ${count > 0 ? '내역 $count건과 ' : ''}예산"
+                        "${fixed > 0 ? ', 고정 지출 $fixed개' : ''}를 '${target.name}'(으)로 옮기고, "
+                        "'${cat.name}' 카테고리를 삭제해요."
+                  : what.isNotEmpty
+                  ? "'${cat.name}' 카테고리의 $what이(가) 전부 사라져요. 이 작업은 되돌릴 수 없어요."
+                  : "'${cat.name}' 카테고리를 삭제해요.",
+            ),
+            if (target == null && fixed > 0)
+              TextSpan(
+                text: '\n삭제한 고정 지출은 앞으로 자동으로 입력되지 않아요.',
+                style: TextStyle(color: c.danger, fontWeight: FontWeight.w700),
+              ),
+          ],
+        ),
       ),
       confirmLabel: target != null
           ? '옮기고 삭제'
-          : count > 0
-          ? '내역까지 삭제'
+          : what.isNotEmpty
+          ? '함께 삭제'
           : '삭제하기',
       destructive: true,
     );
@@ -188,7 +213,12 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
   static const _deleteWithEntries = -1;
 
   /// 옮길 카테고리 id, 함께 삭제면 [_deleteWithEntries], 닫으면 null.
-  Future<int?> _showMoveSheet(Category cat, List<Category> cats, int count) {
+  Future<int?> _showMoveSheet(
+    Category cat,
+    List<Category> cats,
+    int count,
+    int fixed,
+  ) {
     final c = context.colors;
     return showModalBottomSheet<int>(
       context: context,
@@ -211,8 +241,8 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                '이 카테고리의 내역을 다른 카테고리로 옮길 수 있어요. '
-                '옮길 카테고리를 골라주세요. 예산도 함께 옮겨져요.',
+                '이 카테고리의 ${[if (count > 0) '내역', if (fixed > 0) '고정 지출 $fixed개'].join('과 ')}을(를) '
+                '다른 카테고리로 옮길 수 있어요. 옮길 카테고리를 골라주세요. 예산도 함께 옮겨져요.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.6,
@@ -221,7 +251,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
               ),
               const SizedBox(height: 4),
               // 먼저 들어 있는 내역을 보고, 필요하면 내역마다 다른 카테고리로 옮길 수 있다.
-              CategoryEntriesLink(category: cat),
+              if (count > 0) CategoryEntriesLink(category: cat),
               const SizedBox(height: 8),
               for (final other in cats.where((o) => o.id != cat.id))
                 _SheetRow(
@@ -233,7 +263,8 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
               _SheetRow(
                 icon: '🗑️',
                 iconBackground: c.dangerBg,
-                label: '옮기지 않고 내역까지 함께 삭제',
+                label:
+                    '옮기지 않고 ${[if (count > 0) '내역', if (fixed > 0) '고정 지출'].join('과 ')}까지 함께 삭제',
                 color: c.danger,
                 onTap: () => Navigator.pop(context, _deleteWithEntries),
               ),
