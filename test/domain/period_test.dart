@@ -59,42 +59,65 @@ void main() {
     expect(cal.keyOf(d(2026, 11, 30)), '2026-11');
   });
 
-  group('시작일을 바꾸면 다음 기간부터 적용한다', () {
-    test('1일 → 10일: 지금 기간이 늘어나고 지난 기간은 그대로', () {
+  group('시작일을 바꾸면 이번 달부터 바로 적용하고, 그 전 날짜는 전월로 간다', () {
+    test('1일 → 10일: 11월은 10일부터, 11/1~11/9는 10월로', () {
       final cal = PeriodCalendar().withStartDay(d(2026, 11, 20), 10);
-      expect(cal.changes, [const MonthStartChange('2026-12', 10)]);
+      expect(cal.changes, [const MonthStartChange('2026-11', 10)]);
       expect(cal.chosenDay, 10);
       expect(
+        cal.rangeOf('2026-09'),
+        const DateRange('2026-09-01', '2026-09-30'),
+      );
+      expect(
         cal.rangeOf('2026-10'),
-        const DateRange('2026-10-01', '2026-10-31'),
+        const DateRange('2026-10-01', '2026-11-09'),
       );
       expect(
         cal.rangeOf('2026-11'),
-        const DateRange('2026-11-01', '2026-12-09'),
+        const DateRange('2026-11-10', '2026-12-09'),
       );
-      expect(
-        cal.rangeOf('2026-12'),
-        const DateRange('2026-12-10', '2027-01-09'),
-      );
-      expect(cal.keyOf(d(2026, 12, 5)), '2026-11');
+      expect(cal.keyOf(d(2026, 11, 5)), '2026-10');
+      expect(cal.keyOf(d(2026, 11, 20)), '2026-11');
       expect(cal.yearRange(2026), const DateRange('2026-01-01', '2027-01-09'));
     });
 
-    test('10일 → 1일: 지금 기간이 줄어든다', () {
+    test('오늘이 새 시작일 전이면 오늘은 전월 기간이다', () {
+      final cal = PeriodCalendar().withStartDay(d(2026, 11, 5), 10);
+      expect(cal.keyOf(d(2026, 11, 5)), '2026-10');
+      expect(
+        cal.rangeOf('2026-10'),
+        const DateRange('2026-10-01', '2026-11-09'),
+      );
+    });
+
+    test('10일 → 1일: 11월은 1일부터, 전월(10월)은 10월 말일에 끝난다', () {
       final ten = PeriodCalendar([const MonthStartChange('2026-01', 10)]);
       final cal = ten.withStartDay(d(2026, 11, 20), 1);
       expect(
+        cal.rangeOf('2026-09'),
+        const DateRange('2026-09-10', '2026-10-09'),
+      );
+      expect(
         cal.rangeOf('2026-10'),
-        const DateRange('2026-10-10', '2026-11-09'),
+        const DateRange('2026-10-10', '2026-10-31'),
       );
       expect(
         cal.rangeOf('2026-11'),
-        const DateRange('2026-11-10', '2026-11-30'),
+        const DateRange('2026-11-01', '2026-11-30'),
       );
+      // 10일 시작일 때 10월 기간이던 11/5가 이제 11월이다.
+      expect(cal.keyOf(d(2026, 11, 5)), '2026-11');
+    });
+
+    test('28일 → 1일: 전월(10월)은 10.28 ~ 10.31로 줄어든다', () {
+      final late = PeriodCalendar([const MonthStartChange('2026-01', 28)]);
+      expect(late.keyOf(d(2026, 11, 20)), '2026-10');
+      final cal = late.withStartDay(d(2026, 11, 20), 1);
       expect(
-        cal.rangeOf('2026-12'),
-        const DateRange('2026-12-01', '2026-12-31'),
+        cal.rangeOf('2026-10'),
+        const DateRange('2026-10-28', '2026-10-31'),
       );
+      expect(cal.keyOf(d(2026, 11, 20)), '2026-11');
     });
 
     test('모든 날짜가 정확히 한 기간에 들어간다(끊기거나 겹치지 않음)', () {
@@ -117,28 +140,12 @@ void main() {
       }
     });
 
-    test('새 경계가 이미 지났으면 지금 기간이 거기서 끝나고 다음 기간이 이미 시작된 것', () {
-      // 28일 시작에서 11/20은 10월 기간(10.28 ~ 11.27)이다.
-      final late = PeriodCalendar([const MonthStartChange('2026-01', 28)]);
-      expect(late.keyOf(d(2026, 11, 20)), '2026-10');
-      final cal = late.withStartDay(d(2026, 11, 20), 1);
-      expect(
-        cal.rangeOf('2026-10'),
-        const DateRange('2026-10-28', '2026-10-31'),
-      );
-      expect(cal.keyOf(d(2026, 11, 20)), '2026-11');
-      expect(
-        cal.rangeOf('2026-11'),
-        const DateRange('2026-11-01', '2026-11-30'),
-      );
-    });
-
-    test('같은 기간에 다시 바꾸면 마지막 값만 남고, 되돌리면 기록이 사라진다', () {
+    test('같은 달에 다시 바꾸면 마지막 값만 남고, 되돌리면 기록이 사라진다', () {
       final today = d(2026, 11, 20);
       final cal = PeriodCalendar()
           .withStartDay(today, 10)
-          .withStartDay(today, 15);
-      expect(cal.changes, [const MonthStartChange('2026-12', 15)]);
+          .withStartDay(d(2026, 11, 25), 15);
+      expect(cal.changes, [const MonthStartChange('2026-11', 15)]);
       final back = cal.withStartDay(today, 1);
       expect(back.changes, isEmpty);
       expect(back.isCalendar, isTrue);

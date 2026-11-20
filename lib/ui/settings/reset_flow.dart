@@ -24,8 +24,6 @@ Future<_FinalChoice?> _showFinalConfirm(
   final c = context.colors;
   return showModalBottomSheet<_FinalChoice>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: c.surface0,
     builder: (context) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -86,9 +84,7 @@ Future<void> startResetFlow(BuildContext context, WidgetRef ref) async {
   final c = context.colors;
   final kind = await showModalBottomSheet<_ResetKind>(
     context: context,
-    showDragHandle: true,
     isScrollControlled: true,
-    backgroundColor: c.surface0,
     builder: (context) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/domain/budget.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import 'pump.dart';
 
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
   Future<void> tapText(WidgetTester tester, String text) async {
     await tester.tap(find.text(text));
     await settle(tester);

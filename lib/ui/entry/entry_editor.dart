@@ -527,10 +527,7 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
                       Expanded(
                         child: Text(
                           warning,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFFA32D2D),
-                          ),
+                          style: TextStyle(fontSize: 13, color: c.dangerStrong),
                         ),
                       ),
                     ],

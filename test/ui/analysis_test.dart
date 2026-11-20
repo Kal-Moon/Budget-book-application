@@ -5,7 +5,6 @@ import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
 import 'package:gagyebu/ui/analysis/analysis_view.dart';
 import 'package:gagyebu/ui/analysis/analysis_widgets.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers.dart';
 import 'pump.dart';
@@ -60,16 +59,6 @@ Future<void> sampleData(AppDatabase db) async {
 }
 
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.ensureVisible(finder);
-    // 스크롤한 위치가 화면에 반영된 뒤에 누른다.
-    await tester.pump();
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
   Future<void> openAnalysis(WidgetTester tester) => tap(
     tester,
     find.descendant(of: find.byType(NavigationBar), matching: find.text('분석')),

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +30,27 @@ Future<void> settle(WidgetTester tester) async {
     );
     await tester.pump();
   }
+}
+
+/// [finder]를 누른다. 화면 밖이면 먼저 스크롤하고, 스크롤한 위치가 화면에
+/// 반영된 뒤에 누른다(안 하면 스크롤 전 위치를 눌러 하단 탭을 누르게 된다).
+Future<void> tap(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await settle(tester);
+}
+
+/// 하단 탭(홈/입력/분석/설정)을 누른다.
+Future<void> openTab(WidgetTester tester, String label) => tap(
+  tester,
+  find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
+);
+
+/// 폰의 뒤로가기 버튼.
+Future<void> back(WidgetTester tester) async {
+  await tester.binding.handlePopRoute();
+  await settle(tester);
 }
 
 /// 메모리 DB와 가짜 시계(2026-11-08 10:00)로 앱을 띄운다.

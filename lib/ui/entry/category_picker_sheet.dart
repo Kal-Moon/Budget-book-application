@@ -14,9 +14,7 @@ Future<int?> showCategoryPicker(
   int? selectedId,
 }) => showModalBottomSheet<int>(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
-  backgroundColor: context.colors.surface0,
   builder: (_) => _CategoryPickerSheet(kind: kind, selectedId: selectedId),
 );
 

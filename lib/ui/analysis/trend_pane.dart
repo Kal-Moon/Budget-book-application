@@ -61,7 +61,7 @@ class TrendPane extends ConsumerWidget {
     final diffColor = diff > 0
         ? c.danger
         : diff < 0
-        ? const Color(0xFF185FA5)
+        ? c.accentStrong
         : c.textPrimary;
 
     return ListView(
@@ -336,7 +336,7 @@ class _MonthRow extends StatelessWidget {
                         '${d > 0 ? '▲' : '▼'} ${formatNumber(d.abs())} ($deltaPercent)',
                         style: TextStyle(
                           fontSize: 10,
-                          color: d > 0 ? c.danger : const Color(0xFF185FA5),
+                          color: d > 0 ? c.danger : c.accentStrong,
                         ),
                       ),
                     ),

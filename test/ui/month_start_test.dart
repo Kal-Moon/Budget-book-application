@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
 import 'package:gagyebu/domain/period.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers.dart';
@@ -11,29 +10,14 @@ import 'pump.dart';
 
 /// 한 달 시작일: 세부 설정에서 바꾸기, 홈·새 달 팝업·분석이 기간을 따르는지.
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
   /// 처음부터 10일 시작으로 쓰고 있던 것으로 한다.
   final startOn10 = PeriodCalendar([const MonthStartChange('2026-01', 10)])
       .encode();
 
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.ensureVisible(finder);
-    // 스크롤한 위치가 화면에 반영된 뒤에 누른다.
-    await tester.pump();
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
-  Future<void> openTab(WidgetTester tester, String label) => tap(
-    tester,
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
-  );
-
   Finder disabledSwitches() =>
       find.byWidgetPredicate((w) => w is Switch && w.onChanged == null);
 
-  testWidgets('세부 설정에서 시작일을 바꾸면 확인창을 거쳐 다음 기간부터 적용된다', (tester) async {
+  testWidgets('세부 설정에서 시작일을 바꾸면 확인창을 거쳐 이번 달부터 적용된다', (tester) async {
     await pumpApp(tester, clock: FakeClock(DateTime(2026, 11, 20, 10)));
     await openTab(tester, '설정');
     await tap(tester, find.text('세부 설정'));
@@ -44,15 +28,16 @@ void main() {
     await tap(tester, find.text('10일'));
 
     expect(find.text('한 달 시작일을 10일로 바꿀까요?'), findsOneWidget);
-    expect(find.textContaining('· 이번 11월: 11.1 ~ 12.9 (39일)'), findsOneWidget);
-    expect(find.textContaining('· 12월부터: 12.10 ~ 1.9'), findsOneWidget);
+    expect(find.textContaining('· 10월: 10.1 ~ 11.9 (40일)'), findsOneWidget);
+    expect(find.textContaining('· 11월: 11.10 ~ 12.9'), findsOneWidget);
+    expect(find.textContaining('10월 합계와 예산 초과 표시가 달라질 수 있어요'), findsOneWidget);
     await tap(tester, find.text('바꾸기'));
 
     expect(find.text('✓ 한 달 시작일을 10일로 바꿨어요'), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('settings.monthStartChanges'), '[["2026-12",10]]');
+    expect(prefs.getString('settings.monthStartChanges'), '[["2026-11",10]]');
     expect(find.text('10일 ›'), findsOneWidget);
-    expect(find.textContaining('이번 11월: 11.1 ~ 12.9.'), findsOneWidget);
+    expect(find.textContaining('이번 11월: 11.10 ~ 12.9.'), findsOneWidget);
     expect(disabledSwitches(), findsNothing);
 
     await tap(tester, find.bySemanticsLabel('월간 통계도 시작일에 맞추기'));
@@ -95,6 +80,10 @@ void main() {
     expect(find.text('11.10 ~ 12.9'), findsOneWidget);
     // 11/9는 10월 기간이라 빠진다: 3,000 + 7,000.
     expect(find.text('90,000원'), findsOneWidget);
+
+    // 날짜 선택 창: 달력은 1일~말일이고, "전체 보기"에는 기간 날짜를 붙인다.
+    await tap(tester, find.text('2026년 11월'));
+    expect(find.text('2026년 11월 전체 보기 (11.10 ~ 12.9)'), findsOneWidget);
   });
 
   testWidgets('시작일이 10일이면 앱을 켜 둔 채 11/9 23:59 → 11/10 00:01에 새 달 예산을 묻는다', (

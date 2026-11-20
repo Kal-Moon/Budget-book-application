@@ -94,6 +94,37 @@ void main() {
     await expectation;
   });
 
+  test('모든 달의 예산은 달마다 따로 읽은 것과 같다', () async {
+    await db.saveMonthBudget(
+      const MonthBudget(
+        monthKey: '2026-10',
+        mode: BudgetMode.total,
+        total: 300000,
+      ),
+    );
+    await db.saveMonthBudget(
+      const MonthBudget(
+        monthKey: '2026-11',
+        mode: BudgetMode.category,
+        categoryAmounts: {1: 100000, 3: 20000},
+      ),
+    );
+    await db.saveMonthBudget(
+      const MonthBudget(monthKey: '2026-12', mode: BudgetMode.category),
+    );
+
+    final all = await db.watchAllBudgets().first;
+    expect(all.keys, unorderedEquals(['2026-10', '2026-11', '2026-12']));
+    for (final MapEntry(:key, :value) in all.entries) {
+      final one = await db.getMonthBudget(key);
+      expect(value.mode, one.mode, reason: key);
+      expect(value.totalBudget, one.totalBudget, reason: key);
+      expect(value.categoryAmounts, one.categoryAmounts, reason: key);
+      expect(value.isSet, isTrue, reason: key);
+    }
+    expect(all['2026-11']!.categoryAmounts, {1: 100000, 3: 20000});
+  });
+
   test('기록 초기화: 내역·예산은 비우고 기본 카테고리만 다시 넣는다', () async {
     await addEntry('2026-11-01', 1, 2000);
     await db.saveMonthBudget(

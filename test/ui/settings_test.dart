@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers.dart';
@@ -18,26 +17,6 @@ Future<void> octoberBudget(AppDatabase db) => db.saveMonthBudget(
 );
 
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.ensureVisible(finder);
-    // 스크롤한 위치가 화면에 반영된 뒤에 누른다.
-    await tester.pump();
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
-  Future<void> openTab(WidgetTester tester, String label) => tap(
-    tester,
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
-  );
-
-  Future<void> back(WidgetTester tester) async {
-    await tester.binding.handlePopRoute();
-    await settle(tester);
-  }
-
   group('예산 설정', () {
     testWidgets('총 예산을 정하면 홈과 설정에 반영된다', (tester) async {
       await pumpApp(tester);

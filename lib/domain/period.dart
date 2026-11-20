@@ -33,8 +33,8 @@ class MonthStartChange {
 /// 날짜를 "한 달"(기간)로 나누는 규칙.
 ///
 /// - 기간 이름은 시작하는 달이다. 10일 시작이면 '2026-11' = 2026.11.10 ~ 12.9.
-/// - 시작일을 바꾸면 다음 기간부터 적용한다([withStartDay]). 지난 기간은 그대로이고,
-///   바꾼 그 기간만 다음 기간의 새 시작일 전날까지 늘어나거나 줄어든다.
+/// - 시작일을 바꾸면 오늘이 있는 달(달력 기준)의 기간부터 바로 적용한다([withStartDay]).
+///   새 시작일 전의 날짜는 전월 기간에 들어가서, 바로 전 기간만 늘어나거나 줄어든다.
 /// - 기록이 없으면 달력과 같다(1일~말일).
 class PeriodCalendar {
   PeriodCalendar([Iterable<MonthStartChange> changes = const []])
@@ -122,10 +122,12 @@ class PeriodCalendar {
     return '${f(r.start)} ~ ${f(r.end)}';
   }
 
-  /// [today]에 시작일을 [day]로 바꾼 결과. 지금 기간 다음부터 적용한다.
-  /// 같은 기간 안에서 여러 번 바꾸면 마지막 값만 남는다.
+  /// [today]에 시작일을 [day]로 바꾼 결과. 오늘이 있는 달의 기간부터 새 시작일을 쓴다.
+  /// 예: 11/20에 1일 → 10일이면 11월 = 11.10 ~ 12.9, 10월 = 10.1 ~ 11.9(늘어남).
+  /// 오늘이 새 시작일 전이면 오늘은 전월 기간에 들어간다.
+  /// 같은 달 안에서 여러 번 바꾸면 마지막 값만 남는다.
   PeriodCalendar withStartDay(DateTime today, int day) {
-    final from = shiftMonthKey(keyOf(today), 1);
+    final from = monthKeyOf(today);
     final kept = changes.where((c) => c.fromKey.compareTo(from) < 0);
     final base = PeriodCalendar(kept);
     if (base.startDayOf(from) == day) return base;

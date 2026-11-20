@@ -93,10 +93,10 @@ class DetailSettingsScreen extends ConsumerWidget {
               ),
               SettingsNote(
                 calendar.isPlainMonth(currentKey)
-                    ? '월급날에 맞춰 한 달을 나눌 수 있어요. 바꾸면 다음 기간부터 적용되고 지난 기간은 그대로예요.'
+                    ? '월급날에 맞춰 한 달을 나눌 수 있어요. 바꾸면 이번 달부터 바로 적용돼요.'
                     : '이번 ${monthStartOf(currentKey).month}월: '
                           '${calendar.rangeLabel(currentKey)}. '
-                          '바꾸면 다음 기간부터 적용되고 지난 기간은 그대로예요.',
+                          '바꾸면 이번 달부터 바로 적용돼요.',
               ),
               SettingsToggle(
                 label: '월간 통계도 시작일에 맞추기',

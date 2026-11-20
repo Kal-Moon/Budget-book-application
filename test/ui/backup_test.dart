@@ -6,22 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/backup.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers.dart';
 import 'pump.dart';
 
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.ensureVisible(finder);
-    await tester.pump();
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
   Future<void> openSettings(WidgetTester tester) => tap(
     tester,
     find.descendant(of: find.byType(NavigationBar), matching: find.text('설정')),

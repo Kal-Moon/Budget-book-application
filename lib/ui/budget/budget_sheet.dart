@@ -15,9 +15,7 @@ import '../widgets/confirm_sheet.dart';
 Future<void> showBudgetSheet(BuildContext context, {MonthBudget? prefill}) =>
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: context.colors.surface0,
       builder: (_) => _BudgetSheet(prefill: prefill),
     );
 
@@ -346,8 +344,6 @@ Future<void> handleNewMonthBudget(
   final c = context.colors;
   final choice = await showModalBottomSheet<String>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: c.surface0,
     builder: (context) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),

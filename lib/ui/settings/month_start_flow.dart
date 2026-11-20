@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
 
 /// 세부 설정의 "한 달 시작일" 바꾸기: 날 고르기 → 확인창(항상) → 저장.
-/// 바꾼 시작일은 다음 기간부터 적용하고 지난 기간은 그대로 둔다(`PeriodCalendar.withStartDay`).
+/// 바꾼 시작일은 이번 달부터 바로 적용하고, 새 시작일 전 날짜는 전월에 넣는다(`PeriodCalendar.withStartDay`).
 Future<void> changeMonthStart(BuildContext context, WidgetRef ref) async {
   final calendar = ref.read(periodCalendarProvider);
   final day = await _pickDay(context, calendar.chosenDay);
@@ -34,26 +34,26 @@ Future<void> changeMonthStart(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// 확인창 설명: 지금 기간과 다음 기간이 어떻게 되는지.
+/// 확인창 설명: 이번 달과 전월 기간이 어떻게 되는지.
 String _explain(PeriodCalendar before, PeriodCalendar after, DateTime today) {
   String month(String key) => '${monthStartOf(key).month}월';
   String days(String key) =>
       '${after.endOf(key).difference(after.startOf(key)).inDays + 1}일';
 
-  final current = before.keyOf(today);
-  final next = shiftMonthKey(current, 1);
-  final lines = ['다음 기간부터 적용돼요. 지난 기간은 그대로예요.'];
-  if (after.keyOf(today) == current) {
-    lines
-      ..add(
-        '· 이번 ${month(current)}: ${after.rangeLabel(current)} (${days(current)})',
-      )
-      ..add('· ${month(next)}부터: ${after.rangeLabel(next)}');
-  } else {
-    // 새 경계가 이미 지났다: 지금 기간은 거기서 끝나고 다음 기간이 이미 시작됐다.
-    lines
-      ..add('· ${month(current)}: ${after.rangeLabel(current)}로 끝나요')
-      ..add('· 오늘부터 ${month(next)}: ${after.rangeLabel(next)}');
+  final thisMonth = monthKeyOf(today);
+  final prev = shiftMonthKey(thisMonth, -1);
+  final lines = [
+    '이번 달부터 바로 적용돼요. 새 시작일 전 날짜는 전월에 들어가요.',
+    '· ${month(prev)}: ${after.rangeLabel(prev)} (${days(prev)})',
+    '· ${month(thisMonth)}: ${after.rangeLabel(thisMonth)}',
+  ];
+  if (after.keyOf(today) == prev) {
+    lines.add('오늘(${today.month}.${today.day})은 아직 ${month(prev)}이에요.');
+  }
+  if (before.rangeOf(prev) != after.rangeOf(prev)) {
+    lines.add(
+      '${month(prev)} 날짜가 바뀌어서 ${month(prev)} 합계와 예산 초과 표시가 달라질 수 있어요.',
+    );
   }
   return lines.join('\n');
 }
@@ -62,9 +62,7 @@ String _explain(PeriodCalendar before, PeriodCalendar after, DateTime today) {
 Future<int?> _pickDay(BuildContext context, int selected) =>
     showModalBottomSheet<int>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: context.colors.surface0,
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),

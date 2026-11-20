@@ -15,23 +15,23 @@ class SetupBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    color: const Color(0xFFFAEEDA),
+    color: context.colors.warningBg,
     padding: const EdgeInsets.fromLTRB(18, 0, 6, 0),
     child: Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             '예산이 설정되지 않았어요',
-            style: TextStyle(fontSize: 12, color: Color(0xFF854F0B)),
+            style: TextStyle(fontSize: 12, color: context.colors.warningText),
           ),
         ),
         TextButton(
           onPressed: onSetup,
-          child: const Text(
+          child: Text(
             '지금 설정하기',
             style: TextStyle(
               fontSize: 11.5,
-              color: Color(0xFF854F0B),
+              color: context.colors.warningText,
               decoration: TextDecoration.underline,
             ),
           ),
@@ -182,7 +182,7 @@ class IncomeStrip extends StatelessWidget {
           col(
             '차액',
             '${diff >= 0 ? '+' : ''}${formatWon(diff)}',
-            diff >= 0 ? const Color(0xFF185FA5) : c.danger,
+            diff >= 0 ? c.accentStrong : c.danger,
           ),
         ],
       ),
@@ -526,7 +526,7 @@ class EntryTile extends StatelessWidget {
             color: overBudget
                 ? c.danger
                 : income
-                ? const Color(0xFFA9CB8A)
+                ? c.incomeBorder
                 : c.border,
             width: 0.5,
           ),

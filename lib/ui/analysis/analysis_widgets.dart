@@ -152,7 +152,7 @@ class AnalysisIncomeStrip extends StatelessWidget {
           col(
             '차액',
             '${diff >= 0 ? '+' : ''}${formatWon(diff)}',
-            diff >= 0 ? const Color(0xFF185FA5) : c.danger,
+            diff >= 0 ? c.accentStrong : c.danger,
           ),
         ],
       ),
@@ -167,9 +167,7 @@ Future<void> showListSheet(
   required List<Widget> children,
 }) => showModalBottomSheet<void>(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
-  backgroundColor: context.colors.surface0,
   builder: (context) => SafeArea(
     child: ConstrainedBox(
       constraints: BoxConstraints(

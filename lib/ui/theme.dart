@@ -17,6 +17,11 @@ class AppColors extends ThemeExtension<AppColors> {
     this.dangerBg = const Color(0xFFFCEBEB),
     this.income = const Color(0xFF3B6D11),
     this.incomeBg = const Color(0xFFEAF3DE),
+    this.incomeBorder = const Color(0xFFA9CB8A),
+    this.accentStrong = const Color(0xFF185FA5),
+    this.dangerStrong = const Color(0xFFA32D2D),
+    this.warningBg = const Color(0xFFFAEEDA),
+    this.warningText = const Color(0xFF854F0B),
   });
 
   final Color surface0;
@@ -33,6 +38,19 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color dangerBg;
   final Color income;
   final Color incomeBg;
+
+  /// 수입 내역 칸의 테두리.
+  final Color incomeBorder;
+
+  /// 진한 파랑: 차액이 남을 때, "○월 데이터를 보는 중" 안내.
+  final Color accentStrong;
+
+  /// 진한 빨강: 경고·오류 문구.
+  final Color dangerStrong;
+
+  /// 노란 안내 배너(예산 미설정)의 배경과 글자.
+  final Color warningBg;
+  final Color warningText;
 
   @override
   AppColors copyWith() => this;
@@ -75,6 +93,12 @@ ThemeData buildTheme() {
       ),
     ),
     dividerColor: c.border,
+    // 모든 시트: 손잡이 표시, 흰 배경(시트마다 따로 정하지 않는다).
+    bottomSheetTheme: BottomSheetThemeData(
+      showDragHandle: true,
+      backgroundColor: c.surface0,
+      modalBackgroundColor: c.surface0,
+    ),
     extensions: const [c],
   );
 }

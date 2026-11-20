@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers.dart';
 import 'pump.dart';
@@ -58,13 +57,6 @@ Future<void> sampleData(AppDatabase db) async {
 }
 
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
   testWidgets('총 예산 방식: 요약·수입 줄·카테고리 칩(금액·비율)·날짜별 목록', (tester) async {
     await pumpApp(
       tester,

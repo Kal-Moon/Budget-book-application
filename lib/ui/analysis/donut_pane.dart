@@ -109,19 +109,16 @@ class DonutPane extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     '${month.year}년 ${month.month}월 데이터를 보는 중',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF185FA5),
-                    ),
+                    style: TextStyle(fontSize: 12, color: c.accentStrong),
                   ),
                 ),
                 TextButton(
                   onPressed: notifier.showCurrentMonth,
-                  child: const Text(
+                  child: Text(
                     '이번 달로 돌아가기',
                     style: TextStyle(
                       fontSize: 11.5,
-                      color: Color(0xFF185FA5),
+                      color: c.accentStrong,
                       decoration: TextDecoration.underline,
                     ),
                   ),

@@ -257,7 +257,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     ),
     child: Text(
       _error!,
-      style: const TextStyle(fontSize: 12, color: Color(0xFFA32D2D)),
+      style: TextStyle(fontSize: 12, color: context.colors.dangerStrong),
     ),
   );
 

@@ -21,9 +21,7 @@ Future<void> showCategoryEditSheet(
   required VoidCallback onDelete,
 }) => showModalBottomSheet<void>(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
-  backgroundColor: context.colors.surface0,
   builder: (_) => _CategoryEditSheet(
     category: category,
     siblings: siblings,

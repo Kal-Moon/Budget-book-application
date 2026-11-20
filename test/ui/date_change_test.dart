@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gagyebu/data/database.dart';
 import 'package:gagyebu/domain/budget.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import '../helpers.dart';
 import 'pump.dart';
@@ -11,8 +10,6 @@ import 'pump.dart';
 /// 자정·월말이 지나면 "오늘"과 "이번 달"이 틀어졌다.
 /// 여기서는 앱을 켜 둔 상태로 10/31 23:59 → 11/1 00:01을 지나 본다.
 void main() {
-  setUpAll(() => initializeDateFormatting('ko_KR'));
-
   Future<void> octoberSetup(AppDatabase db) async {
     await db.saveMonthBudget(
       const MonthBudget(
@@ -23,19 +20,6 @@ void main() {
     );
     await addEntry(db, date: '2026-10-31', categoryId: 1, amount: 12000);
   }
-
-  Future<void> tap(WidgetTester tester, Finder finder) async {
-    await tester.ensureVisible(finder);
-    // 스크롤한 위치가 화면에 반영된 뒤에 누른다.
-    await tester.pump();
-    await tester.tap(finder);
-    await settle(tester);
-  }
-
-  Future<void> openTab(WidgetTester tester, String label) => tap(
-    tester,
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
-  );
 
   /// 앱을 켜 둔 채 [to]까지 시간이 흐른다(자정 타이머가 깨어날 만큼 가짜 시간도 흘린다).
   Future<void> passTime(

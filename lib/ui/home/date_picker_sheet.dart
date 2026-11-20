@@ -12,9 +12,7 @@ import 'home_view.dart';
 /// 날을 고르면 그날만, "○월 전체 보기"를 누르면 그 달 전체를 본다.
 Future<void> showHomeDatePicker(BuildContext context) => showModalBottomSheet(
   context: context,
-  showDragHandle: true,
   isScrollControlled: true,
-  backgroundColor: context.colors.surface0,
   builder: (_) => const _DatePickerSheet(),
 );
 
@@ -39,6 +37,17 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
   void _showWholeMonth() {
     ref.read(homeViewProvider.notifier).showMonth(monthKeyOf(_month));
     Navigator.pop(context);
+  }
+
+  /// '2026년 11월 전체 보기'. 시작일이 1일이 아니면 기간 날짜를 붙인다
+  /// (달력은 1일~말일 한 장이지만 "전체 보기"는 그 이름의 기간을 보여주므로).
+  String _wholeMonthLabel() {
+    final key = monthKeyOf(_month);
+    final calendar = ref.watch(periodCalendarProvider);
+    final label = '${_month.year}년 ${_month.month}월 전체 보기';
+    return calendar.isPlainMonth(key)
+        ? label
+        : '$label (${calendar.rangeLabel(key)})';
   }
 
   @override
@@ -171,10 +180,7 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
           ],
         ),
         Divider(color: c.border, height: 20),
-        TextButton(
-          onPressed: _showWholeMonth,
-          child: Text('${_month.year}년 ${_month.month}월 전체 보기'),
-        ),
+        TextButton(onPressed: _showWholeMonth, child: Text(_wholeMonthLabel())),
       ],
     );
   }

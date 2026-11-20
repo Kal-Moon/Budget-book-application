@@ -90,9 +90,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     final c = context.colors;
     return showModalBottomSheet<Category>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: c.surface0,
       builder: (context) => SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -194,9 +192,7 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     final c = context.colors;
     return showModalBottomSheet<int>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: c.surface0,
       builder: (context) => SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(

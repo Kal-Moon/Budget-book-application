@@ -220,14 +220,25 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// 예산을 정한 모든 달(월별 추이의 예산 선). 'YYYY-MM' → 예산.
+  /// 달마다 따로 읽지 않고 두 테이블을 한 번씩만 읽는다.
   Stream<Map<String, MonthBudget>> watchAllBudgets() =>
       customSelect(
         'SELECT 1',
         readsFrom: {monthBudgets, monthCategoryBudgets},
       ).watch().asyncMap((_) async {
         final heads = await select(monthBudgets).get();
+        final amounts = <String, Map<int, int>>{};
+        for (final c in await select(monthCategoryBudgets).get()) {
+          (amounts[c.monthKey] ??= {})[c.categoryId] = c.amount;
+        }
         return {
-          for (final h in heads) h.monthKey: await getMonthBudget(h.monthKey),
+          for (final h in heads)
+            h.monthKey: MonthBudget(
+              monthKey: h.monthKey,
+              mode: h.mode,
+              total: h.total,
+              categoryAmounts: amounts[h.monthKey] ?? const {},
+            ),
         };
       });
 
@@ -379,6 +390,8 @@ class AppDatabase extends _$AppDatabase {
       return byName[(kind, name)] = id;
     }
 
+    // 카테고리를 먼저 정하고(필요하면 만들고), 내역은 마지막에 한 번에 넣는다.
+    final inserts = <EntriesCompanion>[];
     var expense = 0;
     var income = 0;
     for (final r in rows) {
@@ -395,7 +408,7 @@ class AppDatabase extends _$AppDatabase {
           null,
         );
       }
-      await into(entries).insert(
+      inserts.add(
         EntriesCompanion.insert(
           kind: r.kind,
           date: r.date,
@@ -409,6 +422,7 @@ class AppDatabase extends _$AppDatabase {
       );
       r.kind == EntryKind.expense ? expense++ : income++;
     }
+    await batch((b) => b.insertAll(entries, inserts));
     return (expense, income);
   });
 

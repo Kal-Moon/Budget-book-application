@@ -14,8 +14,6 @@ Future<bool> showConfirmSheet(
   final c = context.colors;
   final result = await showModalBottomSheet<bool>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: c.surface0,
     builder: (context) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
