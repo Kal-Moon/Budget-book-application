@@ -13,22 +13,7 @@ import '../home/home_view.dart';
 import '../navigation.dart';
 import '../theme.dart';
 import '../widgets/confirm_sheet.dart';
-
-/// 백업 파일을 사용자가 고른 폴더에 저장한다. 저장했으면 true, 취소했으면 false.
-/// 테스트에서는 바꿔 끼운다.
-typedef BackupFileSaver = Future<bool> Function(String name, Uint8List bytes);
-
-final backupFileSaverProvider = Provider<BackupFileSaver>(
-  (ref) => (name, bytes) async {
-    final uri = await FilePicker.saveFile(
-      dialogTitle: '백업 파일 저장',
-      fileName: name,
-      bytes: bytes,
-      mimeType: 'application/json',
-    );
-    return uri != null;
-  },
-);
+import '../widgets/file_out.dart';
 
 /// 복원할 백업 파일을 고른다. 취소하면 null. 테스트에서는 바꿔 끼운다.
 final backupFilePickerProvider = Provider<Future<Uint8List?> Function()>(
@@ -40,35 +25,20 @@ final backupFilePickerProvider = Provider<Future<Uint8List?> Function()>(
   },
 );
 
-/// 백업 파일을 만들어 저장한다. 저장했으면 true.
-Future<bool> saveBackup(BuildContext context, WidgetRef ref) async {
-  final messenger = ScaffoldMessenger.of(context);
-  void toast(String message) => messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message, textAlign: TextAlign.center),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
+/// 백업 파일을 만들어 저장하거나 다른 앱으로 보낸다. 저장했거나 보냈으면 true.
+Future<bool> saveBackup(BuildContext context, WidgetRef ref) {
   final now = ref.read(clockProvider).now();
-  try {
-    final bytes = await createBackup(
+  return deliverFile(
+    context,
+    ref,
+    what: '백업 파일',
+    name: backupFileName(now),
+    build: () => createBackup(
       ref.read(databaseProvider),
       settings: ref.read(settingsProvider.notifier).exportValues(),
       now: now,
-    );
-    final saved = await ref.read(backupFileSaverProvider)(
-      backupFileName(now),
-      bytes,
-    );
-    if (saved) toast('✓ 백업 파일을 저장했어요');
-    return saved;
-  } catch (_) {
-    toast('백업 파일을 저장하지 못했어요. 다시 시도해주세요');
-    return false;
-  }
+    ),
+  );
 }
 
 /// 백업에서 복원: 파일 선택 → 내용 확인 → 확인창(항상) → 지금 데이터를 모두 바꾼다.

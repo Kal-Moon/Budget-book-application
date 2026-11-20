@@ -10,6 +10,7 @@ import '../budget/budget_sheet.dart';
 import '../categories/category_manage_screen.dart';
 import '../import/import_screen.dart';
 import '../settings/backup_flow.dart';
+import '../settings/excel_export_flow.dart';
 import '../settings/detail_settings_screen.dart';
 import '../settings/reset_flow.dart';
 import '../settings/settings_widgets.dart';
@@ -127,9 +128,17 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => startRestoreFlow(context, ref),
               ),
               const SettingsNote(
-                '앱을 지우거나 폰을 바꾸면 데이터도 함께 사라져요. 백업 파일을 다운로드 폴더나 '
-                '구글 드라이브에 저장해 두면 새 폰에서도 복원할 수 있어요. '
+                '앱을 지우거나 폰을 바꾸면 데이터도 함께 사라져요. 백업 파일을 구글 드라이브에 '
+                '저장하거나 카카오톡·메일로 보내 두면 새 폰에서도 복원할 수 있어요. '
                 '앱 잠금(PIN)은 백업에 들어가지 않아요.',
+              ),
+              SettingsRow(
+                label: '엑셀 파일로 내보내기',
+                onTap: () => startExcelExport(context, ref),
+              ),
+              const SettingsNote(
+                '고른 기간의 지출·수입 내역을 엑셀(.xlsx)로 만들어요. 이 파일은 "다른 가계부에서 '
+                '가져오기"로 다시 읽을 수도 있어요.',
               ),
               SettingsRow(
                 label: '다른 가계부에서 가져오기',

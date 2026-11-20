@@ -63,7 +63,7 @@ void main() {
       tester,
       settings: {'mistapProtection': true},
       setup: withData,
-      backupSaver: (name, bytes) async {
+      fileSaver: (name, bytes) async {
         savedName = name;
         savedBytes = bytes;
         return true;
@@ -71,6 +71,7 @@ void main() {
     );
     await openSettings(tester);
     await tap(tester, find.text('백업 파일 만들기'));
+    await tap(tester, find.text('폴더에 저장'));
 
     expect(find.text('✓ 백업 파일을 저장했어요'), findsOneWidget);
     expect(savedName, 'gagyebu-backup-20261108-1000.json');
@@ -83,6 +84,24 @@ void main() {
       isNot(contains('lock.')),
       reason: '잠금 정보 제외',
     );
+  });
+
+  testWidgets('백업 파일을 다른 앱으로 보낼 수 있다', (tester) async {
+    String? sharedName;
+    await pumpApp(
+      tester,
+      setup: withData,
+      fileSharer: (name, _) async {
+        sharedName = name;
+        return true;
+      },
+    );
+    await openSettings(tester);
+    await tap(tester, find.text('백업 파일 만들기'));
+    await tap(tester, find.text('다른 앱으로 보내기'));
+
+    expect(find.text('✓ 백업 파일을 보냈어요'), findsOneWidget);
+    expect(sharedName, 'gagyebu-backup-20261108-1000.json');
   });
 
   testWidgets('백업에서 복원: 내용을 보여주고, 확인하면 기록과 설정이 백업으로 바뀐다', (tester) async {
@@ -154,6 +173,7 @@ void main() {
       await tap(tester, find.text('데이터 초기화'));
       await tap(tester, find.text('내역 데이터 초기화'));
       await tap(tester, find.text('백업하고 초기화'));
+      await tap(tester, find.text('폴더에 저장'));
     }
 
     testWidgets('백업 파일을 저장한 뒤 초기화한다', (tester) async {
@@ -161,7 +181,7 @@ void main() {
       final db = await pumpApp(
         tester,
         setup: withData,
-        backupSaver: (_, bytes) async {
+        fileSaver: (_, bytes) async {
           saved = bytes;
           return true;
         },
