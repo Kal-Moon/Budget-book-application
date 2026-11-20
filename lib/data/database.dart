@@ -294,6 +294,15 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// 같은 종류의 카테고리 순서를 [ids] 순서대로 바꾼다.
+  Future<void> reorderCategories(List<int> ids) => transaction(() async {
+    for (final (i, id) in ids.indexed) {
+      await (update(categories)..where((c) => c.id.equals(id))).write(
+        CategoriesCompanion(sortOrder: Value(i)),
+      );
+    }
+  });
+
   Future<void> updateCategory(
     int id, {
     required String name,

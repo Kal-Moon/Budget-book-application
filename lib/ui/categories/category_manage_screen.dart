@@ -244,10 +244,31 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     );
   }
 
+  /// 끌어서 옮기는 동안 DB가 바뀌기 전까지 보여줄 순서.
+  List<Category>? _pendingOrder;
+
+  Future<void> _reorder(List<Category> cats, int from, int to) async {
+    final list = [...cats];
+    final moved = list.removeAt(from);
+    list.insert(to, moved);
+    setState(() => _pendingOrder = list);
+    await ref.read(databaseProvider).reorderCategories([
+      for (final c in list) c.id,
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final cats = ref.watch(categoriesProvider(_kind)).value ?? const [];
+    final stored = ref.watch(categoriesProvider(_kind)).value ?? const [];
+    final pending = _pendingOrder;
+    final cats =
+        pending != null &&
+            pending.every((p) => p.kind == _kind) &&
+            pending.length == stored.length &&
+            !_sameOrder(pending, stored)
+        ? pending
+        : stored;
     final monthKey = ref.watch(currentMonthKeyProvider);
     final budget = ref.watch(monthBudgetProvider(monthKey)).value;
     final showBudget =
@@ -276,11 +297,17 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
+            child: ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-              children: [
-                for (final cat in cats)
-                  Padding(
+              buildDefaultDragHandles: false,
+              itemCount: cats.length,
+              onReorderItem: (from, to) => _reorder(cats, from, to),
+              itemBuilder: (context, i) {
+                final cat = cats[i];
+                return ReorderableDelayedDragStartListener(
+                  key: ValueKey('cat-${cat.id}'),
+                  index: i,
+                  child: Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Material(
                       color: c.surface2,
@@ -340,35 +367,53 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
                                   ),
                                 ),
                               Icon(Icons.chevron_right, color: c.textMuted),
+                              ReorderableDragStartListener(
+                                index: i,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    key: ValueKey('drag-${cat.id}'),
+                                    color: c.textMuted,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                     ),
                   ),
-                const SizedBox(height: 4),
-                OutlinedButton.icon(
-                  onPressed: () => _add(cats),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('카테고리 추가'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: c.textSecondary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: c.borderStrong),
+                );
+              },
+              footer: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    onPressed: () => _add(cats),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('카테고리 추가'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: c.textSecondary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: c.borderStrong),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  '카테고리를 누르면 이름·아이콘·색상을 바꾸거나, 다른 카테고리와 합치거나, 삭제할 수 있어요.\n'
-                  '색상은 아이콘 배경, 목록 앞 작은 점, 차트에 적용돼요. (글자 색은 바뀌지 않아요)'
-                  '${_kind == EntryKind.expense && !showBudget ? '\n카테고리별 예산은 예산 방식이 "항목별로 정하기"일 때 정할 수 있어요.' : ''}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.7,
-                    color: c.textMuted,
+                  const SizedBox(height: 14),
+                  Text(
+                    '카테고리를 누르면 이름·아이콘·색상을 바꾸거나, 다른 카테고리와 합치거나, 삭제할 수 있어요.\n'
+                    '오른쪽 ≡를 끌거나 길게 눌러 옮기면 순서가 바뀌어요. 홈·입력·분석에 같은 순서로 보여요.\n'
+                    '색상은 아이콘 배경, 목록 앞 작은 점, 차트에 적용돼요. (글자 색은 바뀌지 않아요)'
+                    '${_kind == EntryKind.expense && !showBudget ? '\n카테고리별 예산은 예산 방식이 "항목별로 정하기"일 때 정할 수 있어요.' : ''}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.7,
+                      color: c.textMuted,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -376,6 +421,10 @@ class _CategoryManageScreenState extends ConsumerState<CategoryManageScreen> {
     );
   }
 }
+
+bool _sameOrder(List<Category> a, List<Category> b) =>
+    a.length == b.length &&
+    [for (var i = 0; i < a.length; i++) a[i].id == b[i].id].every((x) => x);
 
 class _TabChip extends StatelessWidget {
   const _TabChip({

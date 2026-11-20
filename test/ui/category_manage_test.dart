@@ -283,4 +283,29 @@ void main() {
     expect(find.text('카테고리 관리'), findsOneWidget);
     expect(find.text('월급'), findsOneWidget, reason: '수입 탭으로 열림');
   });
+
+  testWidgets('≡를 끌어 순서를 바꾸면 DB와 입력 화면 순서가 바뀐다', (tester) async {
+    final db = await pumpApp(tester);
+    await openManage(tester);
+    // 식비(1)를 카페(3) 아래로: 두 칸 조금 안 되게 끌기
+    final handle = find.byKey(const ValueKey('drag-1'));
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await tester.pump(const Duration(milliseconds: 100));
+    for (var i = 0; i < 7; i++) {
+      await gesture.moveBy(const Offset(0, 16));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await gesture.up();
+    await settle(tester);
+
+    final cats = await tester.runAsync(
+      () => db.watchCategories(EntryKind.expense).first,
+    );
+    expect(cats!.map((c) => c.name), ['교통', '카페', '식비', '쇼핑']);
+    final order = [
+      for (final name in ['교통', '카페', '식비', '쇼핑'])
+        tester.getTopLeft(find.text(name)).dy,
+    ];
+    expect([...order]..sort(), order, reason: '화면에도 같은 순서');
+  });
 }
