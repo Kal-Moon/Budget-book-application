@@ -78,4 +78,60 @@ void main() {
       expect(suggestTexts(list, (e) => e.memo, ''), ['친구랑']);
     });
   });
+
+  group('구매처 짝 자동완성', () {
+    List<String> pairs(List<Entry> list, String q, {int? categoryId}) => [
+      for (final p in suggestPlacePairs(list, q, categoryId: categoryId))
+        '${p.place}|${p.description}',
+    ];
+
+    test('칸이 비어 있으면 최근 짝부터, 같은 짝은 한 번만, 구매처 없는 기록은 빼고', () {
+      final list = [
+        entry(1, date: '2026-11-01', place: '스타벅스', description: '아메리카노'),
+        entry(2, date: '2026-11-05', place: '스타벅스', description: '카페라떼'),
+        entry(3, date: '2026-11-03', place: '스타벅스', description: '아메리카노'),
+        entry(4, date: '2026-11-06', description: '쿠팡 생수'),
+        entry(5, date: '2026-11-04', place: '메가커피'),
+      ];
+      expect(pairs(list, ''), ['스타벅스|카페라떼', '메가커피|', '스타벅스|아메리카노']);
+    });
+
+    test('입력한 글자가 구매처나 내역에 들어 있으면 나온다(영문 대소문자 무시)', () {
+      final list = [
+        entry(1, date: '2026-11-01', place: 'Starbucks', description: '아메리카노'),
+        entry(2, date: '2026-11-02', place: '이마트', description: '장보기'),
+      ];
+      expect(pairs(list, 'star'), ['Starbucks|아메리카노']);
+      expect(pairs(list, '장보'), ['이마트|장보기']);
+    });
+
+    test('구매처를 다 쓴 뒤에도 내역이 있는 짝은 나오고, 채울 것이 없는 짝은 빠진다', () {
+      final list = [
+        entry(1, date: '2026-11-01', place: '스타벅스', description: '아메리카노'),
+        entry(2, date: '2026-11-02', place: '스타벅스'),
+      ];
+      expect(pairs(list, '스타벅스'), ['스타벅스|아메리카노']);
+    });
+
+    test('고른 카테고리 짝이 먼저, 최대 5개', () {
+      final list = [
+        for (var i = 1; i <= 6; i++)
+          entry(i, date: '2026-11-0$i', categoryId: 2, place: '가게$i'),
+        entry(
+          7,
+          date: '2026-10-01',
+          categoryId: 1,
+          place: '단골집',
+          description: '점심',
+        ),
+      ];
+      expect(pairs(list, '', categoryId: 1), [
+        '단골집|점심',
+        '가게6|',
+        '가게5|',
+        '가게4|',
+        '가게3|',
+      ]);
+    });
+  });
 }

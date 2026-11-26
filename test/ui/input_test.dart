@@ -195,6 +195,42 @@ void main() {
     expect(tester.widget<TextField>(field('친구랑')).controller!.text, '친구랑');
   });
 
+  testWidgets('구매처 짝 자동완성: 고르면 구매처·내역을 함께 채우고 메모 칸으로 간다', (tester) async {
+    await pumpApp(
+      tester,
+      setup: (db) async {
+        await addEntry(
+          db,
+          date: '2026-11-03',
+          categoryId: 3,
+          amount: 4500,
+          place: '스타벅스',
+          description: '아메리카노',
+        );
+        await addEntry(
+          db,
+          kind: EntryKind.income,
+          date: '2026-11-04',
+          categoryId: 5,
+          amount: 1000,
+          place: '회사',
+          description: '급여',
+        );
+      },
+    );
+    await openInputTab(tester);
+
+    await tap(tester, field('예: 이마트, 쿠팡 (선택)'));
+    expect(find.text('회사 · 급여'), findsNothing, reason: '수입 기록은 빼고');
+    await type(tester, field('예: 이마트, 쿠팡 (선택)'), '아메');
+    await tap(tester, find.text('스타벅스 · 아메리카노'));
+
+    expect(tester.widget<TextField>(field('스타벅스')).controller!.text, '스타벅스');
+    expect(tester.widget<TextField>(field('아메리카노')).controller!.text, '아메리카노');
+    final memo = tester.widget<TextField>(field('추가로 남기고 싶은 메모 (선택)'));
+    expect(memo.focusNode!.hasFocus, isTrue, reason: '메모 칸으로 넘어감');
+  });
+
   testWidgets('카테고리 빠른 추가: 같은 이름은 막고, 새 이름은 추가하고 바로 고른다', (tester) async {
     await pumpApp(tester);
     await openInputTab(tester);

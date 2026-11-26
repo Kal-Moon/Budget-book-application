@@ -71,9 +71,7 @@ List<Entry> searchEntries(
     for (final e in entries)
       if (_matchesAll(words, [
         _squash(
-          e.kind == EntryKind.expense
-              ? e.place + e.description
-              : e.description,
+          e.kind == EntryKind.expense ? e.place + e.description : e.description,
         ),
         _squash(e.memo),
         _squash(categories[e.categoryId]?.name ?? ''),
@@ -91,6 +89,51 @@ String _squash(String text) => text.replaceAll(_spaces, '').toLowerCase();
 bool _matchesAll(List<String> words, List<String> texts) =>
     words.every((w) => texts.any((t) => t.contains(w)));
 
+/// 구매처 칸 자동완성의 한 줄: 예전에 함께 쓴 구매처와 내역(내역은 빌 수 있다).
+typedef PlacePair = ({String place, String description});
+
+/// 구매처 칸 자동완성: 예전 지출의 "구매처 · 내역" 짝 중 [query]가 구매처나 내역에
+/// 들어 있는 것(최대 [limit]개). 고르면 두 칸을 한 번에 채운다.
+/// 순서는 [suggestTexts]와 같다(고른 카테고리 먼저, 그 안에서 최근 것 먼저).
+/// 구매처가 빈 기록은 빼고, 입력한 글자와 구매처가 같으면서 내역이 없는 짝은
+/// 채울 것이 없으니 뺀다.
+List<PlacePair> suggestPlacePairs(
+  Iterable<Entry> entries,
+  String query, {
+  int? categoryId,
+  int limit = 5,
+}) {
+  final q = query.trim().toLowerCase();
+  final seen = <String>{};
+  final out = <PlacePair>[];
+  for (final e in _byCategoryThenRecent(entries, categoryId)) {
+    final place = e.place.trim();
+    final description = e.description.trim();
+    if (place.isEmpty) continue;
+    final lowerPlace = place.toLowerCase();
+    if (!lowerPlace.contains(q) && !description.toLowerCase().contains(q)) {
+      continue;
+    }
+    if (description.isEmpty && lowerPlace == q) continue;
+    if (seen.add('$place\u0000$description')) {
+      out.add((place: place, description: description));
+    }
+    if (out.length == limit) break;
+  }
+  return out;
+}
+
+/// 고른 카테고리의 내역을 먼저, 그 안에서는 최근 것(날짜·시간) 먼저.
+List<Entry> _byCategoryThenRecent(Iterable<Entry> entries, int? categoryId) {
+  int rank(Entry e) => e.categoryId == categoryId ? 0 : 1;
+  return entries.toList()..sort((a, b) {
+    final byCategory = rank(a).compareTo(rank(b));
+    if (byCategory != 0) return byCategory;
+    final byDate = b.date.compareTo(a.date);
+    return byDate != 0 ? byDate : b.time.compareTo(a.time);
+  });
+}
+
 /// 입력 칸 자동완성: 이미 쓴 문구([field]) 중 [query]를 포함하는 것(최대 [limit]개).
 /// [categoryId]가 있으면 그 카테고리에서 쓴 문구를 먼저, 그 안에서는 최근 것 먼저.
 /// 칸이 비어 있으면 최근 문구를 그대로 보여준다. 입력한 글자와 똑같은 것은 뺀다.
@@ -102,17 +145,9 @@ List<String> suggestTexts(
   int limit = 5,
 }) {
   final q = query.trim().toLowerCase();
-  int rank(Entry e) => e.categoryId == categoryId ? 0 : 1;
-  final ordered = entries.toList()
-    ..sort((a, b) {
-      final byCategory = rank(a).compareTo(rank(b));
-      if (byCategory != 0) return byCategory;
-      final byDate = b.date.compareTo(a.date);
-      return byDate != 0 ? byDate : b.time.compareTo(a.time);
-    });
   final seen = <String>{};
   final out = <String>[];
-  for (final e in ordered) {
+  for (final e in _byCategoryThenRecent(entries, categoryId)) {
     final text = field(e).trim();
     final lower = text.toLowerCase();
     if (text.isEmpty || lower == q || !lower.contains(q)) continue;

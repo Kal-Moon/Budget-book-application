@@ -288,45 +288,99 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     );
   }
 
+  /// 구매처 칸 자동완성: 예전의 "구매처 · 내역" 짝. 칸에 들어가 있을 때만 보인다.
+  List<PlacePair> _placePairs() {
+    if (!_placeFocus.hasFocus) return const [];
+    final all = ref.watch(allEntriesProvider).value ?? const [];
+    return suggestPlacePairs(
+      all.where((e) => e.kind == EntryKind.expense),
+      _place.text,
+      categoryId: _categoryId,
+    );
+  }
+
   /// 칸 바로 아래에 붙는 자동완성 목록. 고르면 칸을 채우고 [then]을 부른다.
   List<Widget> _suggestionList(
     List<String> items,
     TextEditingController controller,
     VoidCallback then,
-  ) {
+  ) => [
+    for (final s in items)
+      _suggestionTile(Text(s, style: const TextStyle(fontSize: 13)), () {
+        _fill(controller, s);
+        then();
+      }),
+  ];
+
+  /// 구매처 칸의 짝 목록. 고르면 구매처와 내역을 한 번에 채우고 메모 칸으로 간다.
+  /// 내역이 없는 짝은 구매처만 채우고 내역 칸으로 간다(지금까지와 같다).
+  List<Widget> _placePairList(List<PlacePair> pairs) {
     final c = context.colors;
     return [
-      for (final s in items)
-        Material(
-          color: c.surface0,
-          child: InkWell(
-            onTap: () {
-              controller.value = TextEditingValue(
-                text: s,
-                selection: TextSelection.collapsed(offset: s.length),
-              );
-              then();
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.history, size: 15, color: c.textMuted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      s,
-                      style: const TextStyle(fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+      for (final p in pairs)
+        _suggestionTile(
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: p.place,
+                  style: p.description.isEmpty
+                      ? null
+                      : const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (p.description.isNotEmpty)
+                  TextSpan(
+                    text: ' · ${p.description}',
+                    style: TextStyle(color: c.textSecondary),
                   ),
-                ],
-              ),
+              ],
             ),
+            style: const TextStyle(fontSize: 13),
           ),
+          () {
+            _fill(_place, p.place);
+            if (p.description.isEmpty) {
+              _descriptionFocus.requestFocus();
+            } else {
+              _fill(_description, p.description);
+              _memoFocus.requestFocus();
+            }
+          },
         ),
     ];
+  }
+
+  void _fill(TextEditingController controller, String text) {
+    controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  Widget _suggestionTile(Widget label, VoidCallback onTap) {
+    final c = context.colors;
+    return Material(
+      color: c.surface0,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          child: Row(
+            children: [
+              Icon(Icons.history, size: 15, color: c.textMuted),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DefaultTextStyle.merge(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  child: label,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -335,7 +389,7 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
     final expense = _kind == EntryKind.expense;
     final category = ref.watch(categoryMapProvider).value?[_categoryId];
     final warning = _warning();
-    final placeSuggestions = _suggestions(_placeFocus, _place, (e) => e.place);
+    final placeSuggestions = _placePairs();
     final descriptionSuggestions = _suggestions(
       _descriptionFocus,
       _description,
@@ -544,12 +598,8 @@ class _EntryEditorState extends ConsumerState<EntryEditor> {
                   onSubmitted: () => _descriptionFocus.requestFocus(),
                   onChanged: () => setState(() {}),
                 ),
-                // 구매처를 고르면 다음 칸(내역)으로 넘어간다.
-                ..._suggestionList(
-                  placeSuggestions,
-                  _place,
-                  _descriptionFocus.requestFocus,
-                ),
+                // 짝을 고르면 구매처·내역을 함께 채운다.
+                ..._placePairList(placeSuggestions),
               ],
               const SizedBox(height: 16),
               const _Label('내역'),
