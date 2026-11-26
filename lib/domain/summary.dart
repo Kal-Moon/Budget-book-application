@@ -53,24 +53,43 @@ List<DayGroup> groupByDate(Iterable<Entry> entries) {
 }
 
 /// 전체 기간 검색. 지출은 내역·구매처·메모·카테고리명, 수입은 내역·메모·카테고리명.
-/// 영문 대소문자는 무시한다.
+/// - 영문 대소문자와 띄어쓰기는 무시한다("삼각 김밥"으로 "삼각김밥"을 찾는다).
+/// - 검색어를 띄어 쓰면 낱말마다 나눠서, 모든 낱말이 들어 있는 내역을 찾는다(순서 무관).
+/// - 구매처와 내역은 이어서 한 글로 본다. 두 칸에 나눠 쓴 "스타벅스" + "아메리카노"도
+///   한 칸에 쓴 "스타벅스 아메리카노"처럼 "스타벅스아메리카노"로 찾을 수 있게.
 List<Entry> searchEntries(
   Iterable<Entry> entries,
   Map<int, Category> categories,
   String query,
 ) {
-  final q = query.trim().toLowerCase();
-  if (q.isEmpty) return const [];
-  bool has(String text) => text.toLowerCase().contains(q);
+  final words = [
+    for (final w in query.split(_spaces))
+      if (w.isNotEmpty) w.toLowerCase(),
+  ];
+  if (words.isEmpty) return const [];
   return [
     for (final e in entries)
-      if (has(e.description) ||
-          has(e.memo) ||
-          (e.kind == EntryKind.expense && has(e.place)) ||
-          has(categories[e.categoryId]?.name ?? ''))
+      if (_matchesAll(words, [
+        _squash(
+          e.kind == EntryKind.expense
+              ? e.place + e.description
+              : e.description,
+        ),
+        _squash(e.memo),
+        _squash(categories[e.categoryId]?.name ?? ''),
+      ]))
         e,
   ];
 }
+
+final _spaces = RegExp(r'\s+');
+
+/// 띄어쓰기를 빼고 소문자로.
+String _squash(String text) => text.replaceAll(_spaces, '').toLowerCase();
+
+/// 낱말마다 어느 한 칸에라도 들어 있으면 참.
+bool _matchesAll(List<String> words, List<String> texts) =>
+    words.every((w) => texts.any((t) => t.contains(w)));
 
 /// 입력 칸 자동완성: 이미 쓴 문구([field]) 중 [query]를 포함하는 것(최대 [limit]개).
 /// [categoryId]가 있으면 그 카테고리에서 쓴 문구를 먼저, 그 안에서는 최근 것 먼저.

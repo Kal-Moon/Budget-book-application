@@ -99,4 +99,69 @@ void main() {
       expect(ids('  '), isEmpty);
     });
   });
+
+  group('검색: 띄어쓰기·낱말', () {
+    final cats = {
+      1: category(1, '카페', EntryKind.expense),
+      2: category(2, '식비', EntryKind.expense),
+      5: category(5, '월급', EntryKind.income),
+    };
+    final all = [
+      // 두 칸에 나눠 쓴 기록
+      entry(1, place: '스타벅스', description: '아메리카노'),
+      // 한 칸에 쓴 기록(내역에만 저장)
+      entry(2, description: '스타벅스 아메리카노'),
+      entry(3, categoryId: 2, place: 'GS25', description: '삼각김밥'),
+      entry(4, place: '이마트', description: '장보기', memo: '할인 쿠폰'),
+      entry(
+        5,
+        kind: EntryKind.income,
+        categoryId: 5,
+        place: '회사',
+        description: '11월 급여',
+      ),
+    ];
+    List<int> ids(String q) =>
+        searchEntries(all, cats, q).map((e) => e.id).toList();
+
+    test('띄어 쓴 검색어는 두 칸 기록과 한 칸 기록을 모두 찾는다', () {
+      expect(ids('스타벅스 아메리카노'), [1, 2]);
+    });
+
+    test('붙여 쓴 검색어도 두 칸 기록과 한 칸 기록을 모두 찾는다', () {
+      expect(ids('스타벅스아메리카노'), [1, 2]);
+    });
+
+    test('낱말 순서가 달라도 찾는다', () {
+      expect(ids('아메리카노 스타벅스'), [1, 2]);
+    });
+
+    test('기록의 띄어쓰기와 검색어의 띄어쓰기가 달라도 찾는다', () {
+      expect(ids('삼각 김밥'), [3]);
+      expect(ids('벅스아메'), [1, 2]);
+    });
+
+    test('모든 낱말이 들어 있어야 찾는다', () {
+      expect(ids('스타벅스 이마트'), isEmpty);
+    });
+
+    test('낱말은 서로 다른 칸에 있어도 된다(구매처·메모·카테고리)', () {
+      expect(ids('이마트 쿠폰'), [4]);
+      expect(ids('카페 아메리카노'), [1, 2]);
+    });
+
+    test('메모·카테고리명은 구매처·내역과 이어 붙이지 않는다', () {
+      expect(ids('장보기할인'), isEmpty);
+      expect(ids('카페아메리카노'), isEmpty);
+    });
+
+    test('수입은 구매처로 찾지 않는다(띄어쓰기를 무시해도)', () {
+      expect(ids('회사'), isEmpty);
+      expect(ids('11월급여'), [5]);
+    });
+
+    test('검색어 앞뒤·중간의 여러 빈칸은 무시한다', () {
+      expect(ids('  스타벅스   아메리카노 '), [1, 2]);
+    });
+  });
 }
